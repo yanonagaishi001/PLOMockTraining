@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Math gotta Math</title>
+<title>Payout Sheet Generator</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -256,6 +256,55 @@ button.primary:hover{ background: var(--purple-deep); border-color: var(--purple
   line-height:1.6;
 }
 
+.lock-screen{
+  position: fixed;
+  inset: 0;
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+.lock-card{
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  padding: 32px 30px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+.lock-card::before{
+  content:"";
+  position:absolute; inset:5px;
+  border: 1px solid var(--purple-line);
+  border-radius: 1px;
+  pointer-events:none;
+}
+.lock-card .eyebrow{ justify-content: center; }
+#lockInput{
+  width: 100%;
+  background: var(--white);
+  border: 1px solid rgba(21,18,28,0.28);
+  color: var(--ink);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  padding: 11px 14px;
+  border-radius: 4px;
+  outline: none;
+  text-align: center;
+  transition: border-color .15s, box-shadow .15s;
+}
+#lockInput:focus{ border-color: var(--purple-deep); box-shadow: 0 0 0 3px var(--purple-pale); }
+.lock-error{
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+}
+
 @media (max-width: 560px){
   .panel{ padding: 18px; }
   thead th:nth-child(3), tbody td:nth-child(3){ display:none; }
@@ -263,9 +312,19 @@ button.primary:hover{ background: var(--purple-deep); border-color: var(--purple
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="eyebrow">Tournament Calculator</div>
-  <h1>Payout Structure Sheet</h1>
+<div id="lockScreen" class="lock-screen">
+  <div class="lock-card">
+    <div class="eyebrow">Restricted Access</div>
+    <h1 style="font-size:22px;margin-bottom:8px;">Enter Password</h1>
+    <p class="sub" style="margin-bottom:18px;max-width:none;">This tool is for authorized tournament staff only.</p>
+    <input type="password" id="lockInput" placeholder="Password" autocomplete="off">
+    <button class="primary" id="lockSubmit" style="width:100%;margin-top:12px;">Unlock</button>
+    <p id="lockError" class="lock-error">Incorrect password. Try again.</p>
+  </div>
+</div>
+<div class="wrap" id="mainWrap" style="display:none;">
+  <div class="eyebrow">State Championship &middot; Tournament Operations</div>
+  <h1>Payout Sheet Generator</h1>
   <p class="sub">Enter the buy-in and how much of it feeds the prize pool. Pays 12% of the field, floors the min-cash at 2&times; buy-in, and keeps every pay jump bigger than the one before it.</p>
 
   <div class="panel">
@@ -277,6 +336,10 @@ button.primary:hover{ background: var(--purple-deep); border-color: var(--purple
       <div>
         <label for="toPool">Goes to prize pool</label>
         <div class="field-wrap"><span class="dollar">$</span><input type="number" id="toPool" value="100" min="0" step="1"></div>
+      </div>
+      <div>
+        <label for="addedFunds">Added funds (overlay)</label>
+        <div class="field-wrap"><span class="dollar">$</span><input type="number" id="addedFunds" value="0" min="0" step="1"></div>
       </div>
       <div>
         <label for="entries">Number of entries</label>
@@ -301,14 +364,14 @@ button.primary:hover{ background: var(--purple-deep); border-color: var(--purple
       </div>
       <div class="slider-row">
         <label for="curve">Payout curve shape</label>
-        <input type="range" id="curve" min="1.3" max="3.4" step="0.1" value="2.2">
+        <input type="range" id="curve" min="1.8" max="15.1" step="0.7" value="3.9">
         <div class="slider-labels"><span>Flatter</span><span>Standard</span><span>Top-heavy</span></div>
       </div>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="k">Prize Pool</div><div class="v mono" id="statPool">$0</div></div>
+    <div class="stat"><div class="k">Prize Pool</div><div class="v mono" id="statPool">$0</div><div class="footnote" id="statPoolBreakdown" style="margin-top:6px;"></div></div>
     <div class="stat"><div class="k" id="statPlacesLabel">Places Paid (12%)</div><div class="v mono" id="statPlaces">0</div></div>
     <div class="stat"><div class="k">Min Cash (2&times; buy-in)</div><div class="v mono" id="statMin">$0</div></div>
     <div class="stat"><div class="k">1st Place</div><div class="v mono" id="statFirst">$0</div></div>
@@ -346,7 +409,7 @@ function buildTiers(N) {
     const s = Math.min(size, remaining);
     tiers.push(s);
     remaining -= s;
-    size = Math.max(1, Math.ceil(size * 1.6));
+    size = Math.min(25, Math.max(1, Math.ceil(size * 1.3)));
   }
   return tiers;
 }
@@ -359,27 +422,77 @@ function generatePayouts({prizePool, minCash, N, p, inc}) {
     const pay = Math.round(prizePool / N / inc) * inc;
     return {tiers, tierPayout: [pay], sum: pay * N, error: null};
   }
-  const available = prizePool - minCash * N;
-  if (available < 0) {
+  const rawFloor = N * minCash;
+  if (prizePool - rawFloor < 0) {
     return {error: `This prize pool can't cover the $${minCash.toLocaleString()} minimum cash for all ${N} paid places. Increase entries, raise the prize-pool contribution, or lower buy-in.`};
   }
+
+  // Phase 1: a guaranteed-valid skeleton where jumps grow by exactly one
+  // increment each tier - this alone is enough to satisfy every rule.
+  const minJump = i => (T - 1 - i) * inc;
+  let minPayout = new Array(T);
+  minPayout[T - 1] = minCash;
+  for (let i = T - 2; i >= 0; i--) minPayout[i] = minPayout[i + 1] + minJump(i);
+  const minTotal = minPayout.reduce((a, v, i) => a + v * tiers[i], 0);
+  const requiredExtra = prizePool - minTotal;
+  if (requiredExtra < 0) {
+    return {error: `That many pay bands need at least $${minTotal.toLocaleString()} just to keep every jump distinct at $${inc} rounding, but the pool is $${prizePool.toLocaleString()}. Try a finer rounding increment.`};
+  }
+
+  // Phase 2: layer the curve on top of the skeleton as a bonus - since the
+  // skeleton already guarantees strict separation, this is much less fragile
+  // to round than deriving payouts from the curve alone.
   let weightSum = 0;
   for (let i = 0; i < T; i++) weightSum += Math.pow(T - 1 - i, p) * tiers[i];
-  const k = weightSum === 0 ? 0 : available / weightSum;
-  let tierPayout = tiers.map((_, i) => minCash + k * Math.pow(T - 1 - i, p));
-  tierPayout = tierPayout.map(v => Math.round(v / inc) * inc);
-  if (tierPayout[T - 1] < minCash) tierPayout[T - 1] = Math.ceil(minCash / inc) * inc;
+  // small safety shrink so cumulative rounding is very likely to undershoot
+  // the pool rather than overshoot it (undershoot is always safe to fix)
+  const k = (weightSum === 0 ? 0 : requiredExtra / weightSum) * 0.99;
+  const raw = tiers.map((_, i) => minPayout[i] + k * Math.pow(T - 1 - i, p));
 
-  for (let i = T - 3; i >= 0; i--) {
-    const jumpBelow = tierPayout[i + 1] - tierPayout[i + 2];
-    const jumpHere = tierPayout[i] - tierPayout[i + 1];
-    if (jumpHere <= jumpBelow) tierPayout[i] = tierPayout[i + 1] + jumpBelow + inc;
+  // round via cumulative jumps off raw (still monotonic, now with a real floor under it)
+  let tierPayout = new Array(T);
+  tierPayout[T - 1] = Math.max(Math.round(raw[T - 1] / inc) * inc, Math.ceil(minCash / inc) * inc);
+  let prevJump = null;
+  for (let i = T - 2; i >= 0; i--) {
+    const rawJump = raw[i] - raw[i + 1];
+    let roundedJump = Math.round(rawJump / inc) * inc;
+    if (roundedJump < inc) roundedJump = inc;
+    if (prevJump !== null && roundedJump <= prevJump) roundedJump = prevJump + inc;
+    tierPayout[i] = tierPayout[i + 1] + roundedJump;
+    prevJump = roundedJump;
   }
 
   let sum = tierPayout.reduce((a, v, i) => a + v * tiers[i], 0);
-  const diff = prizePool - sum;
-  tierPayout[0] = Math.round(tierPayout[0] + diff / tiers[0]);
+  let diff = prizePool - sum;
+  if (diff >= 0) {
+    // always safe: growing 1st place only helps its jump over 2nd place
+    tierPayout[0] += diff;
+  } else {
+    // rounding overshot the pool - cascade a trim from the top down, each
+    // tier giving up only what it can while staying above the tier below it
+    let remaining = -diff;
+    for (let i = 0; i < T - 1 && remaining > 0; i++) {
+      const currentJump = tierPayout[i] - tierPayout[i + 1];
+      const safeTrim = Math.min(remaining, Math.max(0, currentJump - inc));
+      tierPayout[i] -= safeTrim;
+      remaining -= safeTrim;
+    }
+    if (remaining > 0) {
+      return {error: "This combination of field size, rounding, and curve setting can't produce a valid sheet. Try a finer rounding increment."};
+    }
+  }
   sum = tierPayout.reduce((a, v, i) => a + v * tiers[i], 0);
+
+  let valid = true;
+  for (let i = 0; i < T - 1; i++) if (tierPayout[i] <= tierPayout[i + 1]) valid = false;
+  for (let i = 0; i < T - 2; i++) {
+    const j1 = tierPayout[i] - tierPayout[i + 1], j2 = tierPayout[i + 1] - tierPayout[i + 2];
+    if (j1 <= j2) valid = false;
+  }
+  if (tierPayout[T - 1] < minCash) valid = false;
+  if (!valid) {
+    return {error: "This combination of field size, rounding, and curve setting can't produce a valid sheet. Try a finer rounding increment."};
+  }
 
   return {tiers, tierPayout, sum, error: null};
 }
@@ -397,18 +510,25 @@ function chipColor(rank) {
 function render() {
   const buyIn = parseFloat($('buyIn').value) || 0;
   const toPool = parseFloat($('toPool').value) || 0;
+  const addedFunds = parseFloat($('addedFunds').value) || 0;
   const entries = parseInt($('entries').value) || 0;
   const inc = parseFloat($('inc').value);
   const p = parseFloat($('curve').value);
   const payPct = parseFloat($('payPct').value) / 100;
 
-  const prizePool = toPool * entries;
+  const prizePool = toPool * entries + addedFunds;
   const N = Math.max(1, Math.round(entries * payPct));
   const minCash = 2 * buyIn;
 
   $('statPlacesLabel').textContent = `Places Paid (${$('payPct').value}%)`;
 
   $('statPool').textContent = fmt(prizePool);
+  const breakdownEl = $('statPoolBreakdown');
+  if (addedFunds > 0) {
+    breakdownEl.textContent = `${fmt(toPool * entries)} from entries + ${fmt(addedFunds)} added`;
+  } else {
+    breakdownEl.textContent = '';
+  }
   $('statPlaces').textContent = N + (entries ? ` of ${entries}` : '');
   $('statMin').textContent = fmt(minCash);
 
@@ -479,7 +599,7 @@ function render() {
     }
   }
 
-  window._lastResult = {res, prizePool, N, minCash, buyIn, toPool, entries};
+  window._lastResult = {res, prizePool, N, minCash, buyIn, toPool, addedFunds, entries};
 }
 
 function ordinal(n) {
@@ -487,18 +607,19 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-['buyIn','toPool','entries','inc','curve','payPct'].forEach(id => {
+['buyIn','toPool','addedFunds','entries','inc','curve','payPct'].forEach(id => {
   $(id).addEventListener('input', render);
 });
 
 $('exportCsv').addEventListener('click', () => {
   if (!window._lastResult) return;
-  const {res, prizePool, N, minCash, buyIn, toPool, entries} = window._lastResult;
+  const {res, prizePool, N, minCash, buyIn, toPool, addedFunds, entries} = window._lastResult;
   let rows = [
     ['Payout Sheet'],
     ['Buy-in', buyIn],
     ['To prize pool (per entry)', toPool],
     ['Entries', entries],
+    ['Added funds (overlay)', addedFunds],
     ['Prize Pool', prizePool],
     ['% of Field Paid', $('payPct').value + '%'],
     ['Places Paid', N],
@@ -528,6 +649,25 @@ $('exportCsv').addEventListener('click', () => {
 $('printSheet').addEventListener('click', () => window.print());
 
 render();
+
+// --- password gate ---
+const LOCK_PASSWORD = "Ilovepoker";
+function tryUnlock() {
+  const entered = document.getElementById('lockInput').value;
+  if (entered === LOCK_PASSWORD) {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('mainWrap').style.display = 'block';
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+    document.getElementById('lockInput').value = '';
+    document.getElementById('lockInput').focus();
+  }
+}
+document.getElementById('lockSubmit').addEventListener('click', tryUnlock);
+document.getElementById('lockInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tryUnlock();
+});
+document.getElementById('lockInput').focus();
 </script>
 </body>
 </html>
