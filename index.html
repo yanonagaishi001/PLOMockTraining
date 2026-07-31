@@ -2,669 +2,1118 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Payout Sheet Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLO Training — Pot Trainer</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,800;1,600&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
-:root{
-  --white: #FFFFFF;
-  --paper: #FBFAFD;
-  --ink: #15121C;
-  --ink-soft: #55506A;
-  --ink-faint: #8B85A0;
-  --purple: #9B7FDE;
-  --purple-deep: #6E4FC4;
-  --purple-pale: #EFE9FB;
-  --purple-line: rgba(110,79,196,0.30);
-  --silver: #A79BC4;
-  --bronze: #B79ADB;
-  --red: #93303B;
-  --line: rgba(21,18,28,0.14);
-}
+  :root{
+    --felt-deep:#161421;
+    --felt-panel:#201d30;
+    --felt-panel-2:#1a1826;
+    --brass:#e8b23d;
+    --brass-bright:#f4c65a;
+    --brass-dim:#5a5064;
+    --cream:#f2efe9;
+    --sage:#a9a3bb;
+    --sage-dim:#726c85;
+    --chip-white:#f4f0e6;
+    --chip-white-text:#241650;
+    --chip-red:#e5566a;
+    --chip-blue:#4a90d9;
+    --chip-green:#4caf7c;
+    --bad:#e5566a;
+    --font-display:'Bebas Neue', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+    --font-body:'Inter', sans-serif;
+  }
 
-*{ box-sizing: border-box; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--felt-deep);
+    color:var(--cream);
+    font-family:var(--font-body);
+    min-height:100vh;
+    padding:20px 14px 60px;
+  }
 
-body{
-  margin:0;
-  background: var(--white);
-  color: var(--ink);
-  font-family: 'Inter', sans-serif;
-  padding: 32px 20px 60px;
-  min-height: 100vh;
-}
+  .wrap{max-width:900px;margin:0 auto;}
 
-.wrap{ max-width: 980px; margin: 0 auto; }
+  .nameplate{
+    border:1px solid var(--brass-dim);
+    background:linear-gradient(180deg, var(--felt-panel), var(--felt-panel-2));
+    border-radius:10px;
+    padding:18px 22px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    box-shadow:0 2px 10px rgba(0,0,0,0.25);
+    animation:fadeDown .5s ease both;
+  }
+  @keyframes fadeDown{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
 
-.eyebrow{
-  font-family:'IBM Plex Mono', monospace;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--purple-deep);
-  margin: 0 0 10px;
-  display:flex; align-items:center; gap:10px;
-}
-.eyebrow::before{
-  content:"";
-  width: 26px; height:1px;
-  background: var(--purple-deep);
-  display:inline-block;
-}
+  .brand h1{
+    font-family:var(--font-display);
+    font-size:clamp(30px,5vw,42px);
+    letter-spacing:3px;
+    margin:0;
+    color:var(--brass-bright);
+    line-height:1;
+  }
+  .brand p{
+    margin:4px 0 0;
+    font-size:12.5px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--sage);
+  }
 
-h1{
-  font-family: 'Playfair Display', serif;
-  font-weight: 800;
-  font-size: clamp(28px, 4vw, 44px);
-  margin: 0 0 10px;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
+  .scoreboard{
+    font-family:var(--font-mono);
+    text-align:right;
+    border-left:1px solid var(--brass-dim);
+    padding-left:16px;
+  }
+  .scoreboard .streak{
+    font-size:22px;
+    color:var(--brass-bright);
+    font-weight:600;
+  }
+  .scoreboard .tally{
+    font-size:12px;
+    color:var(--sage-dim);
+    margin-top:2px;
+  }
 
-.sub{
-  color: var(--ink-soft);
-  font-size: 14.5px;
-  margin: 0 0 28px;
-  max-width: 560px;
-  line-height: 1.6;
-}
+  .stakes-row{
+    display:flex;
+    gap:10px;
+    margin:18px 0;
+    flex-wrap:wrap;
+  }
 
-.panel{
-  background: var(--paper);
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  padding: 24px 26px;
-  margin-bottom: 20px;
-  position: relative;
-}
-.panel::before{
-  content:"";
-  position:absolute; inset:5px;
-  border: 1px solid var(--purple-line);
-  border-radius: 1px;
-  pointer-events:none;
-}
+  .street-row{
+    display:flex;
+    gap:0;
+    margin:18px 0 14px;
+    width:fit-content;
+    border:2px solid var(--brass-dim);
+    border-radius:999px;
+    overflow:hidden;
+  }
+  .street-btn{
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:14px;
+    padding:9px 22px;
+    border:none;
+    background:transparent;
+    color:var(--sage);
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .street-btn.selected{
+    background:var(--brass);
+    color:#2b1c00;
+  }
+  .street-btn:focus-visible{outline:2px solid var(--brass-bright);outline-offset:-2px;}
 
-.grid{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-}
+  .settings-row{
+    display:flex;
+    gap:22px;
+    margin:0 0 18px;
+    flex-wrap:wrap;
+  }
+  .toggle{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:14px;
+    color:var(--sage);
+    cursor:pointer;
+    user-select:none;
+  }
+  .toggle input{
+    position:absolute;
+    opacity:0;
+    width:0;height:0;
+  }
+  .toggle .switch{
+    position:relative;
+    width:40px;height:22px;
+    background:var(--felt-panel-2);
+    border:2px solid var(--brass-dim);
+    border-radius:999px;
+    transition:background .15s ease, border-color .15s ease;
+    flex-shrink:0;
+  }
+  .toggle .switch::after{
+    content:"";
+    position:absolute;
+    top:1px; left:1px;
+    width:16px; height:16px;
+    border-radius:50%;
+    background:var(--sage-dim);
+    transition:transform .18s ease, background .18s ease;
+  }
+  .toggle input:checked + .switch{
+    background:var(--brass);
+    border-color:var(--brass-bright);
+  }
+  .toggle input:checked + .switch::after{
+    transform:translateX(18px);
+    background:#2b1c00;
+  }
+  .toggle input:disabled + .switch{
+    opacity:.4;
+    cursor:not-allowed;
+  }
+  .toggle:has(input:disabled){
+    opacity:.5;
+    cursor:not-allowed;
+  }
+  .toggle input:focus-visible + .switch{
+    outline:2px solid var(--brass-bright);
+    outline-offset:2px;
+  }
 
-label{
-  display:block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--purple-deep);
-  margin-bottom: 7px;
-  font-weight: 700;
-}
+  .chip-btn{
+    font-family:var(--font-mono);
+    font-weight:600;
+    font-size:14px;
+    padding:9px 18px 8px;
+    border-radius:10px;
+    cursor:pointer;
+    border:2px solid transparent;
+    outline-offset:3px;
+    position:relative;
+    transition:border-color .15s ease;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    line-height:1.3;
+  }
+  .chip-btn .bi{
+    font-size:10.5px;
+    font-weight:500;
+    opacity:0.72;
+    letter-spacing:.2px;
+  }
+  .chip-btn.selected{
+    border-color:var(--brass-bright);
+  }
+  .chip-btn:focus-visible{outline:2px solid var(--brass-bright);}
 
-.field-wrap{ position:relative; }
-.dollar{
-  position:absolute; left:12px; top:50%; transform:translateY(-50%);
-  color: var(--purple-deep); font-family:'IBM Plex Mono',monospace; font-size:14px; pointer-events:none;
-}
+  .table-panel{ margin-bottom:18px; }
+  .table-panel .table-frame{ max-width:520px; margin:0 auto; }
+  .answer-panel{ max-width:520px; margin:0 auto; }
 
-input[type=number], select{
-  width:100%;
-  background: var(--white);
-  border: 1px solid rgba(21,18,28,0.28);
-  color: var(--ink);
-  font-family:'IBM Plex Mono', monospace;
-  font-size: 15px;
-  padding: 10px 12px 10px 26px;
-  border-radius: 4px;
-  outline: none;
-  transition: border-color .15s, box-shadow .15s;
-}
-select{ padding-left:12px; cursor:pointer; }
-input[type=number]:focus, select:focus{ border-color: var(--purple-deep); box-shadow: 0 0 0 3px var(--purple-pale); }
-input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button{ opacity: 0.6; }
+  .panel{
+    border:1px solid var(--brass-dim);
+    background:var(--felt-panel);
+    border-radius:10px;
+    padding:18px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.2);
+  }
 
-.slider-row{ grid-column: 1 / -1; }
-input[type=range]{
-  width:100%; accent-color: var(--purple-deep);
-  height: 4px;
-  margin-top: 8px;
-}
-.slider-labels{
-  display:flex; justify-content:space-between;
-  font-size: 10px; color: var(--ink-faint); text-transform:uppercase; letter-spacing:.06em;
-  margin-top: 4px;
-}
+  .panel h2{
+    font-family:var(--font-display);
+    letter-spacing:1.5px;
+    font-size:20px;
+    margin:0 0 12px;
+    color:var(--brass-bright);
+  }
 
-.stats{
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-}
-.stat{
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--purple);
-  border-radius: 2px;
-  padding: 16px 18px;
-}
-.stat .k{ font-size:10px; text-transform:uppercase; letter-spacing:.1em; color: var(--purple-deep); font-weight:700; }
-.stat .v{ font-family:'Playfair Display',serif; font-size: 26px; font-weight:700; margin-top:4px; color: var(--ink); }
-.stat .v.mono{ font-family:'IBM Plex Mono',monospace; }
+  .table-frame{
+    position:relative;
+    width:100%;
+    aspect-ratio:16/12;
+    margin-bottom:14px;
+  }
+  .rail{
+    position:absolute;
+    inset:8% 6%;
+    border-radius:50%;
+    background:var(--felt-panel-2);
+    border:2px solid var(--brass-dim);
+  }
 
-.warning{
-  background: #FBF0F1;
-  border: 1px solid rgba(147,48,59,0.4);
-  color: var(--red);
-  border-radius: 4px;
-  padding: 14px 18px;
-  font-size: 13.5px;
-  line-height:1.5;
-  margin-bottom: 20px;
-}
-.warning strong{ color: var(--red); }
+  .seat{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:64px;
+    transition:opacity .2s ease;
+  }
+  .seat.folded{opacity:0.32;}
+  .seat .avatar-ring{
+    width:40px;height:40px;
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--felt-panel-2);
+    border:2px solid var(--sage-dim);
+    position:relative;
+  }
+  .seat.hero .avatar-ring{
+    border-color:var(--brass-bright);
+    box-shadow:0 0 0 4px rgba(232,178,61,0.25);
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion:reduce){ .seat.hero .avatar-ring{animation:none;} }
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 4px rgba(232,178,61,0.2);}
+    50%{box-shadow:0 0 0 6px rgba(232,178,61,0.35);}
+  }
+  .seat svg{width:24px;height:24px;}
+  .seat .label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    margin-top:4px;
+    text-align:center;
+    color:var(--cream);
+    line-height:1.2;
+  }
+  .seat .label .tag{
+    display:block;
+    font-size:9px;
+    letter-spacing:1px;
+    color:var(--brass);
+  }
+  .seat .label .tag.pot-status{
+    font-family:var(--font-display);
+    font-size:20px;
+    letter-spacing:2px;
+    color:var(--chip-red);
+    text-shadow:0 0 10px rgba(255,77,109,0.65), 0 0 2px rgba(0,0,0,0.6);
+    margin-top:2px;
+    animation:popIn .4s ease;
+  }
+  @media (prefers-reduced-motion:reduce){ .seat .label .tag.pot-status{animation:none;} }
+  @media (max-width:520px){
+    .seat{width:46px;}
+    .seat .avatar-ring{width:30px;height:30px;}
+    .seat svg{width:18px;height:18px;}
+    .seat .label{font-size:9px;}
+    .seat .label .tag.pot-status{font-size:15px;letter-spacing:1px;}
+  }
 
-.skyline{
-  display:flex; align-items:flex-end; gap:3px;
-  height: 140px;
-  margin: 4px 0 6px;
-  padding: 0 2px;
-}
-.bar{
-  flex:1;
-  min-width: 3px;
-  border-radius: 2px 2px 0 0;
-  position: relative;
-  transition: height .3s ease;
-}
-.skyline-caption{
-  font-family:'IBM Plex Mono', monospace;
-  font-size: 10px;
-  color: var(--ink-faint);
-  display:flex; justify-content:space-between;
-  padding: 0 2px;
-  margin-bottom: 22px;
-}
+  .centerpot{
+    position:absolute;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+  }
+  .centerpot .coins{
+    position:relative;
+    width:30px;
+    height:30px;
+  }
+  .centerpot .coins .c{
+    position:absolute;
+    left:0;
+    width:30px;
+    height:12px;
+    border-radius:50%;
+    border:2px solid rgba(0,0,0,0.4);
+    box-shadow:0 1px 2px rgba(0,0,0,0.4);
+    background:var(--brass);
+  }
+  .centerpot .amt{
+    font-family:var(--font-mono);
+    font-size:16px;
+    font-weight:700;
+    color:var(--brass-bright);
+    background:rgba(10,30,22,0.8);
+    padding:3px 9px;
+    border-radius:5px;
+    white-space:nowrap;
+  }
+  .centerpot .caption{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--sage);
+  }
+  @media (max-width:520px){
+    .centerpot .coins{width:22px;height:22px;}
+    .centerpot .coins .c{width:22px;height:9px;}
+    .centerpot .amt{font-size:13px;}
+  }
 
-table{
-  width:100%;
-  border-collapse: collapse;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 14px;
-}
-thead th{
-  text-align:left;
-  font-family:'Inter',sans-serif;
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--purple-deep);
-  font-weight:700;
-  padding: 0 14px 10px;
-  border-bottom: 1.5px solid var(--ink);
-}
-thead th:not(:first-child), tbody td:not(:first-child){ text-align:right; }
+  .chipstack{
+    position:absolute;
+    transform:translate(-50%,-50%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+  }
+  .chipstack .coins{
+    position:relative;
+    width:20px;
+    height:22px;
+  }
+  .chipstack .coins .c{
+    position:absolute;
+    left:0;
+    width:20px;
+    height:9px;
+    border-radius:50%;
+    border:1.5px solid rgba(0,0,0,0.4);
+    box-shadow:0 1px 1px rgba(0,0,0,0.35);
+  }
+  .chipstack .amt{
+    font-family:var(--font-mono);
+    font-size:15px;
+    font-weight:700;
+    color:var(--brass-bright);
+    background:rgba(10,30,22,0.75);
+    padding:2px 7px;
+    border-radius:4px;
+    white-space:nowrap;
+  }
+  .chipstack .pot-tag{
+    font-family:var(--font-display);
+    font-size:22px;
+    letter-spacing:2px;
+    color:var(--chip-red);
+    text-shadow:0 0 10px rgba(255,77,109,0.65), 0 0 2px rgba(0,0,0,0.6);
+    line-height:1;
+    animation:popIn .4s ease;
+    white-space:nowrap;
+  }
+  @media (prefers-reduced-motion:reduce){ .chipstack .pot-tag{animation:none;} }
+  @media (max-width:520px){
+    .chipstack .coins{width:14px;height:16px;}
+    .chipstack .coins .c{width:14px;height:6px;}
+    .chipstack .amt{font-size:12.5px;padding:2px 6px;}
+    .chipstack .pot-tag{font-size:16px;letter-spacing:1px;}
+  }
 
-tbody tr{ position:relative; }
-tbody td{
-  padding: 12px 14px;
-  border-bottom: 1px dashed var(--line);
-  color: var(--ink);
-}
-tbody tr:last-child td{ border-bottom:none; }
-tbody tr:hover{ background: var(--purple-pale); }
+  .question{
+    font-size:15.5px;
+    line-height:1.5;
+    margin-bottom:14px;
+  }
+  .question b{color:var(--brass-bright);}
 
-.place-tag{
-  display:inline-flex; align-items:center; gap:8px;
-  font-weight:600;
-}
-.chip{
-  width:9px; height:9px; border-radius:50%;
-  display:inline-block; flex-shrink:0;
-}
-.payout-amt{ font-weight:700; font-size:15px; color: var(--ink); }
-.jump{ color: var(--purple-deep); font-size:12.5px; font-weight:600; }
-.jump.dash{ color: var(--ink-faint); opacity:.6; font-weight:400; }
+  .answer-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .answer-row input{
+    flex:1;
+    font-family:var(--font-mono);
+    font-size:20px;
+    padding:10px 12px;
+    border-radius:6px;
+    border:1px solid var(--brass-dim);
+    background:var(--felt-panel-2);
+    color:var(--cream);
+  }
+  .answer-row input:focus-visible{outline:2px solid var(--brass-bright);}
+  .answer-row input::placeholder{color:var(--sage-dim);}
 
-.actions{
-  display:flex; gap:12px; margin-top:18px; flex-wrap:wrap;
-}
-button{
-  font-family:'Inter',sans-serif;
-  font-weight:600;
-  font-size: 13px;
-  padding: 11px 20px;
-  border-radius: 4px;
-  border: 1.5px solid var(--ink);
-  background: var(--white);
-  color: var(--ink);
-  cursor:pointer;
-  transition: all .15s;
-}
-button:hover{ background: var(--purple-pale); border-color: var(--purple-deep); color: var(--purple-deep); }
-button.primary{
-  background: var(--ink);
-  color: var(--white);
-  border-color: var(--ink);
-}
-button.primary:hover{ background: var(--purple-deep); border-color: var(--purple-deep); color: var(--white); }
+  .btn{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:14.5px;
+    letter-spacing:.2px;
+    padding:10px 20px;
+    border-radius:8px;
+    border:none;
+    background:var(--brass);
+    color:#2b1c00;
+    cursor:pointer;
+    transition:background .12s ease;
+  }
+  .btn:hover{background:var(--brass-bright);}
+  .btn:active{background:var(--brass);}
+  .btn:focus-visible{outline:2px solid var(--cream);outline-offset:2px;}
+  .btn.secondary{
+    background:transparent;
+    color:var(--brass-bright);
+    border:1px solid var(--brass-dim);
+    box-shadow:none;
+  }
+  .btn.secondary:hover{background:rgba(232,178,61,0.12);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
 
-.footnote{
-  font-size: 12px;
-  color: var(--ink-faint);
-  margin-top: 16px;
-  line-height:1.6;
-}
+  .feedback{
+    font-family:var(--font-mono);
+    font-size:15px;
+    font-weight:600;
+    margin-bottom:10px;
+    min-height:22px;
+  }
+  .feedback.good{
+    color:var(--chip-green);
+    text-shadow:0 0 12px rgba(43,226,131,0.55);
+    animation:popIn .4s ease;
+  }
+  .feedback.bad{
+    color:var(--bad);
+    animation:shake .4s ease;
+  }
+  @keyframes popIn{0%{transform:scale(0.85);opacity:0;}60%{transform:scale(1.06);}100%{transform:scale(1);opacity:1;}}
+  @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+  @media (prefers-reduced-motion:reduce){
+    .feedback.good, .feedback.bad{animation:none;}
+  }
 
-.lock-screen{
-  position: fixed;
-  inset: 0;
-  background: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 20px;
-}
-.lock-card{
-  background: var(--paper);
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  padding: 32px 30px;
-  max-width: 340px;
-  width: 100%;
-  text-align: center;
-  position: relative;
-}
-.lock-card::before{
-  content:"";
-  position:absolute; inset:5px;
-  border: 1px solid var(--purple-line);
-  border-radius: 1px;
-  pointer-events:none;
-}
-.lock-card .eyebrow{ justify-content: center; }
-#lockInput{
-  width: 100%;
-  background: var(--white);
-  border: 1px solid rgba(21,18,28,0.28);
-  color: var(--ink);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 15px;
-  padding: 11px 14px;
-  border-radius: 4px;
-  outline: none;
-  text-align: center;
-  transition: border-color .15s, box-shadow .15s;
-}
-#lockInput:focus{ border-color: var(--purple-deep); box-shadow: 0 0 0 3px var(--purple-pale); }
-.lock-error{
-  color: var(--red);
-  font-size: 13px;
-  margin-top: 12px;
-  display: none;
-}
+  .ticket{
+    display:none;
+    background:#faf3e4;
+    color:#20281f;
+    font-family:var(--font-mono);
+    border-radius:8px;
+    padding:18px 16px;
+    position:relative;
+    box-shadow:0 4px 14px rgba(0,0,0,0.25);
+    animation:ticketIn .35s ease both;
+  }
+  .ticket.show{display:block;}
+  @keyframes ticketIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  @media (prefers-reduced-motion:reduce){ .ticket{animation:none;} }
+  .ticket h3{
+    margin:0 0 8px;
+    font-size:12.5px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    border-bottom:1px solid #d8cfb8;
+    padding-bottom:8px;
+  }
+  .ticket .line{
+    display:flex;
+    justify-content:space-between;
+    font-size:13.5px;
+    padding:3px 0;
+  }
+  .ticket .line.total{
+    border-top:1px solid #d8cfb8;
+    margin-top:6px;
+    padding-top:8px;
+    font-size:15px;
+    font-weight:700;
+  }
+  .ticket .formula{
+    font-size:12.5px;
+    color:#5c5847;
+    margin:6px 0 2px;
+  }
 
-@media (max-width: 560px){
-  .panel{ padding: 18px; }
-  thead th:nth-child(3), tbody td:nth-child(3){ display:none; }
-}
 </style>
 </head>
 <body>
-<div id="lockScreen" class="lock-screen">
-  <div class="lock-card">
-    <div class="eyebrow">Restricted Access</div>
-    <h1 style="font-size:22px;margin-bottom:8px;">Enter Password</h1>
-    <p class="sub" style="margin-bottom:18px;max-width:none;">This tool is for authorized tournament staff only.</p>
-    <input type="password" id="lockInput" placeholder="Password" autocomplete="off">
-    <button class="primary" id="lockSubmit" style="width:100%;margin-top:12px;">Unlock</button>
-    <p id="lockError" class="lock-error">Incorrect password. Try again.</p>
-  </div>
-</div>
-<div class="wrap" id="mainWrap" style="display:none;">
-  <div class="eyebrow">State Championship &middot; Tournament Operations</div>
-  <h1>Payout Sheet Generator</h1>
-  <p class="sub">Enter the buy-in and how much of it feeds the prize pool. Pays 12% of the field, floors the min-cash at 2&times; buy-in, and keeps every pay jump bigger than the one before it.</p>
+<div class="wrap">
 
-  <div class="panel">
-    <div class="grid">
-      <div>
-        <label for="buyIn">Total buy-in</label>
-        <div class="field-wrap"><span class="dollar">$</span><input type="number" id="buyIn" value="125" min="0" step="1"></div>
-      </div>
-      <div>
-        <label for="toPool">Goes to prize pool</label>
-        <div class="field-wrap"><span class="dollar">$</span><input type="number" id="toPool" value="100" min="0" step="1"></div>
-      </div>
-      <div>
-        <label for="addedFunds">Added funds (overlay)</label>
-        <div class="field-wrap"><span class="dollar">$</span><input type="number" id="addedFunds" value="0" min="0" step="1"></div>
-      </div>
-      <div>
-        <label for="entries">Number of entries</label>
-        <input type="number" id="entries" value="100" min="1" step="1">
-      </div>
-      <div>
-        <label for="payPct">% of field paid</label>
-        <select id="payPct">
-          <option value="10">10%</option>
-          <option value="12" selected>12%</option>
-        </select>
-      </div>
-      <div>
-        <label for="inc">Round payouts to</label>
-        <select id="inc">
-          <option value="25" selected>$25</option>
-          <option value="100">$100</option>
-        </select>
-      </div>
-      <div class="slider-row">
-        <label for="curve">Payout curve shape</label>
-        <input type="range" id="curve" min="1.8" max="15.1" step="0.7" value="3.9">
-        <div class="slider-labels"><span>Flatter</span><span>Standard</span><span>Top-heavy</span></div>
-      </div>
+  <div class="nameplate">
+    <div class="brand">
+      <h1>PLO TRAINING</h1>
+      <p>Pot-Limit Omaha &middot; Dealer Pot-Call Trainer</p>
+    </div>
+    <div class="scoreboard">
+      <div class="streak" id="streakVal">0 STREAK</div>
+      <div class="tally" id="tallyVal">0 / 0 correct</div>
     </div>
   </div>
 
-  <div class="stats">
-    <div class="stat"><div class="k">Prize Pool</div><div class="v mono" id="statPool">$0</div><div class="footnote" id="statPoolBreakdown" style="margin-top:6px;"></div></div>
-    <div class="stat"><div class="k" id="statPlacesLabel">Places Paid (12%)</div><div class="v mono" id="statPlaces">0</div></div>
-    <div class="stat"><div class="k">Min Cash (2&times; buy-in)</div><div class="v mono" id="statMin">$0</div></div>
-    <div class="stat"><div class="k">1st Place</div><div class="v mono" id="statFirst">$0</div></div>
+  <div class="street-row" id="streetRow">
+    <button class="street-btn selected" data-street="preflop">Preflop</button>
+    <button class="street-btn" data-street="flop">Flop</button>
   </div>
 
-  <div id="warningBox"></div>
+  <div class="stakes-row" id="stakesRow"></div>
 
-  <div class="panel" id="skylinePanel">
-    <div class="skyline" id="skyline"></div>
-    <div class="skyline-caption"><span>Last paid</span><span>1st place</span></div>
+  <div class="settings-row">
+    <label class="toggle">
+      <input type="checkbox" id="straddleToggle">
+      <span class="switch"></span>
+      Straddle
+    </label>
+    <label class="toggle" id="dblStraddleLabel">
+      <input type="checkbox" id="doubleStraddleToggle" disabled>
+      <span class="switch"></span>
+      Double Straddle
+    </label>
+  </div>
 
-    <table>
-      <thead>
-        <tr><th>Place</th><th>Payout</th><th>% of Pool</th><th>Jump</th></tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-
-    <div class="actions">
-      <button class="primary" id="exportCsv">Export CSV</button>
-      <button id="printSheet">Print Sheet</button>
+  <div class="panel table-panel">
+    <h2>THE TABLE — 8 HANDED</h2>
+    <div class="table-frame">
+      <div class="rail"></div>
+      <div id="seatLayer"></div>
+      <div id="chipLayer"></div>
+      <div id="centerPot" class="centerpot" style="display:none;"></div>
     </div>
-    <p class="footnote">1st through 9th always get individual payouts (or all paid places, if fewer than 9 cash). Beyond 9th, places are grouped into tiers the way most rooms post them (e.g. "10th&ndash;12th"). Every jump &mdash; individual or tier-to-tier &mdash; is strictly larger than the jump below it, and the last paid place always pays exactly 2&times; the buy-in unless the pool can't support it, in which case you'll see a warning above.</p>
+  </div>
+
+  <div class="panel answer-panel">
+    <div class="question" id="questionText"></div>
+    <div class="answer-row">
+      <input type="number" inputmode="numeric" id="answerInput" placeholder="Total amount ($)">
+      <button class="btn" id="submitBtn">Lock it in</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+    <div class="ticket" id="ticket">
+      <h3>Dealer's Count Slip</h3>
+      <div class="line"><span>Last bet</span><b id="tLastBet"></b></div>
+      <div class="line"><span>Trails (everything else already in)</span><b id="tTrails"></b></div>
+      <div class="formula" id="tFormula1"></div>
+      <div class="line" id="tAlreadyInRow"><span id="tAlreadyInLabel"></span><b id="tAlreadyIn"></b></div>
+      <div class="formula" id="tFormula2"></div>
+      <div class="line total"><span>The count</span><span id="tTotal"></span></div>
+      <div class="line"><span>New chips added this action</span><span id="tNewLevel"></span></div>
+    </div>
+    <div style="margin-top:16px;">
+      <button class="btn secondary" id="nextBtn">Deal Next Hand</button>
+    </div>
   </div>
 </div>
 
 <script>
-function buildTiers(N) {
-  const tiers = [];
-  let remaining = N;
-  const individualCount = Math.min(9, N);
-  for (let i = 0; i < individualCount; i++) { tiers.push(1); remaining -= 1; }
-  let size = 3;
-  while (remaining > 0) {
-    const s = Math.min(size, remaining);
-    tiers.push(s);
-    remaining -= s;
-    size = Math.min(25, Math.max(1, Math.ceil(size * 1.3)));
-  }
-  return tiers;
-}
+const STAKES = [
+  {key:'2-3',   sb:2,  bb:3,  label:'2 / 3',   bg:'var(--chip-white)', fg:'var(--chip-white-text)', buyIn:'$100 – $500'},
+  {key:'5-5',   sb:5,  bb:5,  label:'5 / 5',   bg:'var(--chip-red)',   fg:'#fff',                    buyIn:'$300 – $1,500'},
+  {key:'10-10', sb:10, bb:10, label:'10 / 10', bg:'var(--chip-blue)',  fg:'#fff',                    buyIn:'$1,000 – $5,000'},
+  {key:'25-25', sb:25, bb:25, label:'25 / 25', bg:'var(--chip-green)', fg:'#08281a',                 buyIn:'$2,500 – no max*'},
+];
 
-function generatePayouts({prizePool, minCash, N, p, inc}) {
-  if (N <= 0) return {error: "No places to pay at this field size."};
-  const tiers = buildTiers(N);
-  const T = tiers.length;
-  if (T === 1) {
-    const pay = Math.round(prizePool / N / inc) * inc;
-    return {tiers, tierPayout: [pay], sum: pay * N, error: null};
-  }
-  const rawFloor = N * minCash;
-  if (prizePool - rawFloor < 0) {
-    return {error: `This prize pool can't cover the $${minCash.toLocaleString()} minimum cash for all ${N} paid places. Increase entries, raise the prize-pool contribution, or lower buy-in.`};
-  }
+let currentStake = STAKES[0];
+let currentStreet = 'preflop';
+let scenario = null;
+let correct = 0, attempts = 0, streak = 0;
+let answered = false;
 
-  // Phase 1: a guaranteed-valid skeleton where jumps grow by exactly one
-  // increment each tier - this alone is enough to satisfy every rule.
-  const minJump = i => (T - 1 - i) * inc;
-  let minPayout = new Array(T);
-  minPayout[T - 1] = minCash;
-  for (let i = T - 2; i >= 0; i--) minPayout[i] = minPayout[i + 1] + minJump(i);
-  const minTotal = minPayout.reduce((a, v, i) => a + v * tiers[i], 0);
-  const requiredExtra = prizePool - minTotal;
-  if (requiredExtra < 0) {
-    return {error: `That many pay bands need at least $${minTotal.toLocaleString()} just to keep every jump distinct at $${inc} rounding, but the pool is $${prizePool.toLocaleString()}. Try a finer rounding increment.`};
-  }
-
-  // Phase 2: layer the curve on top of the skeleton as a bonus - since the
-  // skeleton already guarantees strict separation, this is much less fragile
-  // to round than deriving payouts from the curve alone.
-  let weightSum = 0;
-  for (let i = 0; i < T; i++) weightSum += Math.pow(T - 1 - i, p) * tiers[i];
-  // small safety shrink so cumulative rounding is very likely to undershoot
-  // the pool rather than overshoot it (undershoot is always safe to fix)
-  const k = (weightSum === 0 ? 0 : requiredExtra / weightSum) * 0.99;
-  const raw = tiers.map((_, i) => minPayout[i] + k * Math.pow(T - 1 - i, p));
-
-  // round via cumulative jumps off raw (still monotonic, now with a real floor under it)
-  let tierPayout = new Array(T);
-  tierPayout[T - 1] = Math.max(Math.round(raw[T - 1] / inc) * inc, Math.ceil(minCash / inc) * inc);
-  let prevJump = null;
-  for (let i = T - 2; i >= 0; i--) {
-    const rawJump = raw[i] - raw[i + 1];
-    let roundedJump = Math.round(rawJump / inc) * inc;
-    if (roundedJump < inc) roundedJump = inc;
-    if (prevJump !== null && roundedJump <= prevJump) roundedJump = prevJump + inc;
-    tierPayout[i] = tierPayout[i + 1] + roundedJump;
-    prevJump = roundedJump;
-  }
-
-  let sum = tierPayout.reduce((a, v, i) => a + v * tiers[i], 0);
-  let diff = prizePool - sum;
-  if (diff >= 0) {
-    // always safe: growing 1st place only helps its jump over 2nd place
-    tierPayout[0] += diff;
-  } else {
-    // rounding overshot the pool - cascade a trim from the top down, each
-    // tier giving up only what it can while staying above the tier below it
-    let remaining = -diff;
-    for (let i = 0; i < T - 1 && remaining > 0; i++) {
-      const currentJump = tierPayout[i] - tierPayout[i + 1];
-      const safeTrim = Math.min(remaining, Math.max(0, currentJump - inc));
-      tierPayout[i] -= safeTrim;
-      remaining -= safeTrim;
-    }
-    if (remaining > 0) {
-      return {error: "This combination of field size, rounding, and curve setting can't produce a valid sheet. Try a finer rounding increment."};
-    }
-  }
-  sum = tierPayout.reduce((a, v, i) => a + v * tiers[i], 0);
-
-  let valid = true;
-  for (let i = 0; i < T - 1; i++) if (tierPayout[i] <= tierPayout[i + 1]) valid = false;
-  for (let i = 0; i < T - 2; i++) {
-    const j1 = tierPayout[i] - tierPayout[i + 1], j2 = tierPayout[i + 1] - tierPayout[i + 2];
-    if (j1 <= j2) valid = false;
-  }
-  if (tierPayout[T - 1] < minCash) valid = false;
-  if (!valid) {
-    return {error: "This combination of field size, rounding, and curve setting can't produce a valid sheet. Try a finer rounding increment."};
-  }
-
-  return {tiers, tierPayout, sum, error: null};
-}
-
-const $ = id => document.getElementById(id);
-const fmt = n => '$' + Math.round(n).toLocaleString();
-
-function chipColor(rank) {
-  if (rank === 1) return 'var(--purple-deep)';
-  if (rank === 2) return 'var(--purple)';
-  if (rank === 3) return 'var(--bronze)';
-  return 'var(--silver)';
-}
-
-function render() {
-  const buyIn = parseFloat($('buyIn').value) || 0;
-  const toPool = parseFloat($('toPool').value) || 0;
-  const addedFunds = parseFloat($('addedFunds').value) || 0;
-  const entries = parseInt($('entries').value) || 0;
-  const inc = parseFloat($('inc').value);
-  const p = parseFloat($('curve').value);
-  const payPct = parseFloat($('payPct').value) / 100;
-
-  const prizePool = toPool * entries + addedFunds;
-  const N = Math.max(1, Math.round(entries * payPct));
-  const minCash = 2 * buyIn;
-
-  $('statPlacesLabel').textContent = `Places Paid (${$('payPct').value}%)`;
-
-  $('statPool').textContent = fmt(prizePool);
-  const breakdownEl = $('statPoolBreakdown');
-  if (addedFunds > 0) {
-    breakdownEl.textContent = `${fmt(toPool * entries)} from entries + ${fmt(addedFunds)} added`;
-  } else {
-    breakdownEl.textContent = '';
-  }
-  $('statPlaces').textContent = N + (entries ? ` of ${entries}` : '');
-  $('statMin').textContent = fmt(minCash);
-
-  const warningBox = $('warningBox');
-  const skylinePanel = $('skylinePanel');
-
-  if (!buyIn || !toPool || !entries) {
-    warningBox.innerHTML = '';
-    skylinePanel.style.display = 'none';
-    $('statFirst').textContent = '$0';
-    return;
-  }
-
-  const res = generatePayouts({prizePool, minCash, N, p, inc});
-
-  if (res.error) {
-    warningBox.innerHTML = `<div class="warning"><strong>Can't build a valid sheet:</strong> ${res.error}</div>`;
-    skylinePanel.style.display = 'none';
-    $('statFirst').textContent = '—';
-    return;
-  }
-
-  warningBox.innerHTML = '';
-  skylinePanel.style.display = 'block';
-  $('statFirst').textContent = fmt(res.tierPayout[0]);
-
-  // skyline bars
-  const skyline = $('skyline');
-  skyline.innerHTML = '';
-  const maxPay = res.tierPayout[0];
-  res.tierPayout.forEach((pay, i) => {
-    const bar = document.createElement('div');
-    bar.className = 'bar';
-    const h = Math.max(4, (pay / maxPay) * 130);
-    bar.style.height = h + 'px';
-    bar.style.background = chipColor(i + 1);
-    bar.title = fmt(pay);
-    skyline.appendChild(bar);
+const stakesRow = document.getElementById('stakesRow');
+STAKES.forEach(s=>{
+  const b = document.createElement('button');
+  b.className = 'chip-btn' + (s.key===currentStake.key ? ' selected' : '');
+  b.style.background = s.bg;
+  b.style.color = s.fg;
+  b.innerHTML = `<span>${s.label} PLO</span><span class="bi">${s.buyIn}</span>`;
+  b.dataset.key = s.key;
+  b.addEventListener('click', ()=>{
+    currentStake = STAKES.find(x=>x.key===s.key);
+    [...stakesRow.children].forEach(c=>c.classList.remove('selected'));
+    b.classList.add('selected');
+    dealHand();
   });
+  stakesRow.appendChild(b);
+});
 
-  // table
-  const tbody = $('tableBody');
-  tbody.innerHTML = '';
-  let place = 1;
-  res.tiers.forEach((size, i) => {
-    const pay = res.tierPayout[i];
-    const label = size === 1 ? ordinal(place) : `${ordinal(place)}&ndash;${ordinal(place + size - 1)}`;
-    const pct = ((pay / prizePool) * 100).toFixed(2) + '%';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="place-tag"><span class="chip" style="background:${chipColor(place)}"></span>${label}</span></td>
-      <td class="payout-amt">${fmt(pay)}</td>
-      <td>${pct}</td>
-      <td id="jumpcell-${i}"></td>
-    `;
-    tbody.appendChild(tr);
-    place += size;
-  });
+function mod8(n){ return ((n%8)+8)%8; }
+function rnd(n){ return Math.floor(Math.random()*n); }
+function pick(arr){ return arr[rnd(arr.length)]; }
+function roundNice(n){ return Math.max(1, Math.round(n)); }
+function roundToStake(n, stake){
+  if(stake.key === '2-3') return Math.max(1, Math.round(n));
+  const step = 5;
+  return Math.max(step, Math.round(n/step)*step);
+}
 
-  // fill jump column: jump = payout of this tier minus payout of tier below it (next row down = smaller payout)
-  for (let i = 0; i < res.tiers.length; i++) {
-    const cell = document.getElementById(`jumpcell-${i}`);
-    if (i === res.tiers.length - 1) {
-      cell.innerHTML = '<span class="jump dash">base</span>';
+const PERSON_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="12" cy="8" r="4" fill="var(--cream)"/>
+  <path d="M4 21c0-5 3.5-8 8-8s8 3 8 8" fill="var(--cream)"/>
+</svg>`;
+
+function generateScenario(stake, opts){
+  const buttonIdx = rnd(8);
+  const sbIdx = mod8(buttonIdx+1);
+  const bbIdx = mod8(buttonIdx+2);
+  const straddleIdx = mod8(bbIdx+1);
+  const dblStraddleIdx = mod8(bbIdx+2);
+
+  const contributions = new Array(8).fill(0);
+  contributions[sbIdx] = stake.sb;
+  contributions[bbIdx] = stake.bb;
+  let pot = stake.sb + stake.bb;
+  let currentBet = stake.bb;
+  const folded = new Set();
+  const log = [];
+
+  log.push({seat:sbIdx, role:'SB', text:`posts small blind <b>$${stake.sb}</b>`, blind:true, kind:'blind', amount:stake.sb});
+  log.push({seat:bbIdx, role:'BB', text:`posts big blind <b>$${stake.bb}</b>`, blind:true, kind:'blind', amount:stake.bb});
+
+  const willStraddle = !!(opts && opts.straddle) && Math.random() < 0.65;
+  const willDblStraddle = willStraddle && !!(opts && opts.doubleStraddle) && Math.random() < 0.4;
+
+  if(willStraddle){
+    const strAmt = 2*stake.bb;
+    contributions[straddleIdx] = strAmt;
+    pot += strAmt;
+    currentBet = strAmt;
+    log.push({seat:straddleIdx, role:'STR', text:`straddles <b>$${strAmt}</b>`, blind:true, kind:'blind', amount:strAmt});
+  }
+  if(willDblStraddle){
+    const dblAmt = 4*stake.bb;
+    contributions[dblStraddleIdx] = dblAmt;
+    pot += dblAmt;
+    currentBet = dblAmt;
+    log.push({seat:dblStraddleIdx, role:'STR2', text:`double straddles <b>$${dblAmt}</b>`, blind:true, kind:'blind', amount:dblAmt});
+  }
+
+  const roleOf = (idx)=> idx===buttonIdx ? 'BTN' : idx===sbIdx ? 'SB' : idx===bbIdx ? 'BB'
+    : (willStraddle && idx===straddleIdx) ? 'STR'
+    : (willDblStraddle && idx===dblStraddleIdx) ? 'STR2' : '';
+
+  // Build acting order: everyone else first, then blinds/straddles act last, in the order they were posted
+  const lastActors = [sbIdx, bbIdx];
+  if(willStraddle) lastActors.push(straddleIdx);
+  if(willDblStraddle) lastActors.push(dblStraddleIdx);
+  const startSeat = mod8(lastActors[lastActors.length-1] + 1);
+  const order = [];
+  for(let k=0;k<8-lastActors.length;k++) order.push(mod8(startSeat+k));
+  lastActors.forEach(s=>order.push(s));
+
+  let raisesSoFar = willDblStraddle ? 2 : (willStraddle ? 1 : 0);
+  const heroPos = 1 + rnd(7);
+
+  for(let i=0;i<heroPos;i++){
+    const seatIdx = order[i];
+    const toCall = currentBet - contributions[seatIdx];
+    let action;
+    const canRaise = raisesSoFar < 3;
+    const r = Math.random();
+    if(toCall===0){
+      action = (canRaise && Math.random()<0.35) ? 'raise' : 'check';
     } else {
-      const jump = res.tierPayout[i] - res.tierPayout[i + 1];
-      cell.innerHTML = `<span class="jump">+${fmt(jump)}</span>`;
+      if(r < 0.38) action = 'fold';
+      else if(!canRaise || r < 0.85) action = 'call';
+      else action = 'raise';
+    }
+
+    if(action==='fold'){
+      folded.add(seatIdx);
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'folds', kind:'fold', amount:null});
+    } else if(action==='check'){
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
+    } else if(action==='call'){
+      contributions[seatIdx] += toCall;
+      pot += toCall;
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
+    } else {
+      const potBeforeRaise = pot;
+      const callPart = toCall;
+      const maxTotal = potBeforeRaise + 2*callPart;
+      const minTotal = callPart + stake.bb;
+      const factor = pick([0.5, 0.66, 0.75, 1, 1]);
+      let totalPutIn = roundToStake(factor*maxTotal, stake);
+      if(totalPutIn < minTotal) totalPutIn = minTotal;
+      if(totalPutIn > maxTotal) totalPutIn = maxTotal;
+      const potted = totalPutIn === maxTotal;
+      contributions[seatIdx] += totalPutIn;
+      pot += totalPutIn;
+      currentBet = contributions[seatIdx];
+      raisesSoFar++;
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted});
     }
   }
 
-  window._lastResult = {res, prizePool, N, minCash, buyIn, toPool, addedFunds, entries};
+  const heroIdx = order[heroPos];
+  const callHero = currentBet - contributions[heroIdx];
+  const potBeforeHero = pot;
+  const lastBet = currentBet;
+  const alreadyIn = contributions[heroIdx];
+  const trails = potBeforeHero - lastBet - alreadyIn;
+  const correctPutIn = potBeforeHero + 2*lastBet - alreadyIn; // total count = new total in front of the seat
+  const newMoneyThisAction = correctPutIn - alreadyIn;
+
+  return {
+    stake, buttonIdx, sbIdx, bbIdx, straddleIdx, dblStraddleIdx, willStraddle, willDblStraddle,
+    order, folded, log, contributions,
+    heroIdx, callHero, potBeforeHero, lastBet, trails, alreadyIn,
+    correctPutIn, newMoneyThisAction, roleOf
+  };
 }
 
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+function generateFlopScenario(stake){
+  const buttonIdx = rnd(8);
+  const liveCount = 2 + rnd(4); // 2..5 players saw the flop
+  const liveSet = new Set();
+  while(liveSet.size < liveCount) liveSet.add(rnd(8));
+  const preflopFolded = new Set();
+  for(let i=0;i<8;i++) if(!liveSet.has(i)) preflopFolded.add(i);
+
+  // action order: position order starting left of the button, restricted to live seats
+  const order = [];
+  for(let k=1;k<=8;k++){
+    const seat = mod8(buttonIdx+k);
+    if(liveSet.has(seat)) order.push(seat);
+  }
+
+  const carryoverPot = roundToStake(stake.bb * (4 + rnd(20)), stake);
+  const contributions = new Array(8).fill(0);
+  let pot = carryoverPot;
+  let currentBet = 0;
+  const folded = new Set();
+  const log = [{info:true, text:`&rarr; The pot carries <b>$${carryoverPot}</b> to the flop. ${liveCount} players are still in the hand.`}];
+
+  const roleOf = (idx)=> idx===buttonIdx ? 'BTN' : '';
+
+  let raisesSoFar = 0;
+  const heroPos = order.length===2 ? 1 : (1 + rnd(order.length-1));
+
+  for(let i=0;i<heroPos;i++){
+    const seatIdx = order[i];
+    const toCall = currentBet - contributions[seatIdx];
+    let action;
+    const canRaise = raisesSoFar < 3;
+    const r = Math.random();
+    if(toCall===0){
+      action = (canRaise && Math.random()<0.45) ? 'raise' : 'check';
+    } else {
+      if(r < 0.35) action = 'fold';
+      else if(!canRaise || r < 0.82) action = 'call';
+      else action = 'raise';
+    }
+
+    if(action==='fold'){
+      folded.add(seatIdx);
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'folds', kind:'fold', amount:null});
+    } else if(action==='check'){
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
+    } else if(action==='call'){
+      contributions[seatIdx] += toCall;
+      pot += toCall;
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
+    } else {
+      const potBeforeRaise = pot;
+      const callPart = toCall;
+      const maxTotal = potBeforeRaise + 2*callPart;
+      const minTotal = callPart + stake.bb;
+      const factor = pick([0.33, 0.5, 0.66, 0.75, 1]);
+      let totalPutIn = roundToStake(factor*maxTotal, stake);
+      if(totalPutIn < minTotal) totalPutIn = minTotal;
+      if(totalPutIn > maxTotal) totalPutIn = maxTotal;
+      const potted = totalPutIn === maxTotal;
+      contributions[seatIdx] += totalPutIn;
+      pot += totalPutIn;
+      currentBet = contributions[seatIdx];
+      raisesSoFar++;
+      const verb = currentBet===totalPutIn && raisesSoFar===1 && callPart===0 ? 'bets' : 'raises to';
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`${verb} <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted});
+    }
+  }
+
+  const heroIdx = order[heroPos];
+  const callHero = currentBet - contributions[heroIdx];
+  const potBeforeHero = pot;
+  const lastBet = currentBet;
+  const alreadyIn = contributions[heroIdx];
+  const trails = potBeforeHero - lastBet - alreadyIn;
+  const correctPutIn = potBeforeHero + 2*lastBet - alreadyIn;
+  const newMoneyThisAction = correctPutIn - alreadyIn;
+
+  return {
+    stake, buttonIdx, street:'flop', carryoverPot, preflopFolded,
+    order, folded, log, contributions,
+    heroIdx, callHero, potBeforeHero, lastBet, trails, alreadyIn,
+    correctPutIn, newMoneyThisAction, roleOf
+  };
 }
 
-['buyIn','toPool','addedFunds','entries','inc','curve','payPct'].forEach(id => {
-  $(id).addEventListener('input', render);
-});
+function seatPos(i, rx, ry){
+  const angle = (-90 + i*45) * Math.PI/180;
+  return { x: 50 + rx*Math.cos(angle), y: 50 + ry*Math.sin(angle) };
+}
 
-$('exportCsv').addEventListener('click', () => {
-  if (!window._lastResult) return;
-  const {res, prizePool, N, minCash, buyIn, toPool, addedFunds, entries} = window._lastResult;
-  let rows = [
-    ['Payout Sheet'],
-    ['Buy-in', buyIn],
-    ['To prize pool (per entry)', toPool],
-    ['Entries', entries],
-    ['Added funds (overlay)', addedFunds],
-    ['Prize Pool', prizePool],
-    ['% of Field Paid', $('payPct').value + '%'],
-    ['Places Paid', N],
-    ['Min Cash', minCash],
-    [],
-    ['Place', 'Payout', '% of Pool', 'Jump']
-  ];
-  let place = 1;
-  res.tiers.forEach((size, i) => {
-    const pay = res.tierPayout[i];
-    const label = size === 1 ? `${place}` : `${place}-${place + size - 1}`;
-    const pct = ((pay / prizePool) * 100).toFixed(2) + '%';
-    const jump = i < res.tiers.length - 1 ? (res.tierPayout[i] - res.tierPayout[i + 1]) : '';
-    rows.push([label, pay, pct, jump]);
-    place += size;
-  });
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], {type: 'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `payout-sheet-${entries}-entries.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
+function chipColorFor(stake){
+  const map = {'2-3':'#f4f0e6','5-5':'#ff4d6d','10-10':'#2f8fff','25-25':'#2be283'};
+  return map[stake.key] || '#ffcc33';
+}
 
-$('printSheet').addEventListener('click', () => window.print());
+let seatDivBySeat = {};
+let chipDivBySeat = {};
+let dealTimer = null;
+let currentSkip = null;
 
-render();
-
-// --- password gate ---
-const LOCK_PASSWORD = "Ilovepoker";
-function tryUnlock() {
-  const entered = document.getElementById('lockInput').value;
-  if (entered === LOCK_PASSWORD) {
-    document.getElementById('lockScreen').style.display = 'none';
-    document.getElementById('mainWrap').style.display = 'block';
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockInput').value = '';
-    document.getElementById('lockInput').focus();
+function renderSeatsBase(sc){
+  const layer = document.getElementById('seatLayer');
+  layer.innerHTML = '';
+  seatDivBySeat = {};
+  for(let i=0;i<8;i++){
+    const {x,y} = seatPos(i, 43, 38);
+    const div = document.createElement('div');
+    div.className = 'seat';
+    div.style.left = x+'%';
+    div.style.top = y+'%';
+    const role = sc.roleOf(i);
+    div.innerHTML = `
+      <div class="avatar-ring">${PERSON_SVG}</div>
+      <div class="label">Seat ${i+1}${role?`<span class="tag">${role}</span>`:''}<span class="tag status"></span></div>
+    `;
+    layer.appendChild(div);
+    seatDivBySeat[i] = div;
+    if(sc.preflopFolded && sc.preflopFolded.has(i)){
+      div.classList.add('folded');
+      div.querySelector('.status').textContent = 'folded pre-flop';
+    }
   }
 }
-document.getElementById('lockSubmit').addEventListener('click', tryUnlock);
-document.getElementById('lockInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') tryUnlock();
+
+function showCenterPot(amount){
+  const el = document.getElementById('centerPot');
+  el.style.display = 'flex';
+  const color = document.documentElement.style.getPropertyValue('--brass') || '#ffcc33';
+  el.innerHTML = `<div class="coins"><div class="c" style="bottom:0px;"></div><div class="c" style="bottom:7px;"></div><div class="c" style="bottom:14px;"></div></div><div class="amt">$${amount}</div><div class="caption">carried to the flop</div>`;
+}
+
+function hideCenterPot(){
+  document.getElementById('centerPot').style.display = 'none';
+  document.getElementById('centerPot').innerHTML = '';
+}
+
+function upsertChip(sc, seatIdx, amount, potted){
+  const color = chipColorFor(sc.stake);
+  if(chipDivBySeat[seatIdx]){
+    const div = chipDivBySeat[seatIdx];
+    div.querySelector('.amt').textContent = `$${amount}`;
+    setPotTag(div, potted);
+    return;
+  }
+  const {x,y} = seatPos(seatIdx, 25, 22);
+  const div = document.createElement('div');
+  div.className = 'chipstack';
+  div.style.left = x+'%';
+  div.style.top = y+'%';
+  const coinCount = Math.min(4, 1 + Math.floor(Math.random()*3));
+  let coinsHtml = '';
+  for(let c=0;c<coinCount;c++){
+    coinsHtml += `<div class="c" style="bottom:${c*6}px;background:${color};"></div>`;
+  }
+  div.innerHTML = `<div class="coins">${coinsHtml}</div><div class="amt">$${amount}</div>`;
+  document.getElementById('chipLayer').appendChild(div);
+  chipDivBySeat[seatIdx] = div;
+  setPotTag(div, potted);
+}
+
+function setPotTag(div, potted){
+  let tag = div.querySelector('.pot-tag');
+  if(potted && !tag){
+    tag = document.createElement('div');
+    tag.className = 'pot-tag';
+    tag.textContent = 'POT';
+    div.appendChild(tag);
+  }
+}
+
+function revealHeroPot(sc){
+  const seatIdx = sc.heroIdx;
+  let div = chipDivBySeat[seatIdx];
+  if(!div){
+    const color = chipColorFor(sc.stake);
+    const {x,y} = seatPos(seatIdx, 25, 22);
+    div = document.createElement('div');
+    div.className = 'chipstack';
+    div.style.left = x+'%';
+    div.style.top = y+'%';
+    const coinCount = Math.min(4, 1 + Math.floor(Math.random()*3));
+    let coinsHtml = '';
+    for(let c=0;c<coinCount;c++){
+      coinsHtml += `<div class="c" style="bottom:${c*6}px;background:${color};"></div>`;
+    }
+    div.innerHTML = `<div class="coins">${coinsHtml}</div>`;
+    document.getElementById('chipLayer').appendChild(div);
+    chipDivBySeat[seatIdx] = div;
+  }
+  const existingAmt = div.querySelector('.amt');
+  if(existingAmt) existingAmt.remove();
+  const existingTag = div.querySelector('.pot-tag');
+  if(existingTag) existingTag.remove();
+  setTimeout(()=>{
+    const amt = document.createElement('div');
+    amt.className = 'amt';
+    amt.textContent = `$${sc.correctPutIn}`;
+    div.appendChild(amt);
+  }, 600);
+}
+
+function applyEntryVisual(sc, entry){
+  if(entry.info) return;
+  const seatDiv = seatDivBySeat[entry.seat];
+  if(entry.kind === 'fold'){
+    seatDiv.classList.add('folded');
+    seatDiv.querySelector('.status').textContent = 'folded';
+  }
+  if(entry.amount != null){
+    upsertChip(sc, entry.seat, entry.amount, !!entry.potted);
+  }
+}
+
+function renderQuestion(sc){
+  const q = document.getElementById('questionText');
+  q.innerHTML = `<b>What's the pot size bet?</b>`;
+}
+
+function animateDeal(sc, startIdx){
+  let idx = startIdx || 0;
+  function doStep(){
+    if(idx >= sc.log.length){ finishDeal(sc); return; }
+    const entry = sc.log[idx];
+    applyEntryVisual(sc, entry);
+    idx++;
+    dealTimer = setTimeout(doStep, 520 + Math.floor(Math.random()*260));
+  }
+  currentSkip = ()=>{
+    clearTimeout(dealTimer);
+    while(idx < sc.log.length){
+      const entry = sc.log[idx];
+      applyEntryVisual(sc, entry);
+      idx++;
+    }
+    finishDeal(sc);
+  };
+  dealTimer = setTimeout(doStep, 450);
+}
+
+function finishDeal(sc){
+  currentSkip = null;
+  const heroDiv = seatDivBySeat[sc.heroIdx];
+  heroDiv.classList.add('hero');
+  const statusEl = heroDiv.querySelector('.status');
+  statusEl.textContent = 'POT';
+  statusEl.classList.add('pot-status');
+  renderQuestion(sc);
+  document.getElementById('answerInput').disabled = false;
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('answerInput').focus();
+}
+
+document.getElementById('questionText').addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'skipBtn' && currentSkip) currentSkip();
 });
-document.getElementById('lockInput').focus();
+
+function dealHand(){
+  if(dealTimer) clearTimeout(dealTimer);
+  currentSkip = null;
+  if(currentStreet === 'flop'){
+    scenario = generateFlopScenario(currentStake);
+  } else {
+    const straddleOn = document.getElementById('straddleToggle').checked;
+    const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
+    scenario = generateScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn});
+  }
+  answered = false;
+  chipDivBySeat = {};
+  document.getElementById('chipLayer').innerHTML = '';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('ticket').classList.remove('show');
+  document.getElementById('answerInput').value = '';
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').disabled = true;
+  renderSeatsBase(scenario);
+  if(scenario.carryoverPot){
+    showCenterPot(scenario.carryoverPot);
+  } else {
+    hideCenterPot();
+  }
+  let leadCount = 0;
+  for(const entry of scenario.log){
+    if(entry.kind !== 'blind' && !entry.info) break;
+    applyEntryVisual(scenario, entry);
+    leadCount++;
+  }
+  document.getElementById('questionText').innerHTML = `Dealing the hand&hellip; <button id="skipBtn" class="btn secondary" style="padding:5px 12px;font-size:12px;margin-left:6px;">Skip ahead</button>`;
+  animateDeal(scenario, leadCount);
+}
+
+function submitAnswer(){
+  if(answered || !scenario) return;
+  const val = parseInt(document.getElementById('answerInput').value, 10);
+  if(isNaN(val)) return;
+  answered = true;
+  attempts++;
+  const fb = document.getElementById('feedback');
+  if(val === scenario.correctPutIn){
+    correct++; streak++;
+    fb.textContent = `Correct — the count is $${scenario.correctPutIn}! 🎉`;
+    fb.className = 'feedback good';
+  } else {
+    streak = 0;
+    fb.textContent = `Not quite. The count is $${scenario.correctPutIn} — here's the math.`;
+    fb.className = 'feedback bad';
+  }
+  revealHeroPot(scenario);
+  if(scenario.callHero === 0){
+    document.getElementById('tLastBet').parentElement.style.display = 'none';
+    document.getElementById('tTrails').parentElement.style.display = 'none';
+    document.getElementById('tAlreadyInRow').style.display = 'none';
+    if(scenario.alreadyIn > 0){
+      document.getElementById('tFormula1').textContent = `No one's bet more than what you already have in — the count is the pot plus what's already yours:`;
+      document.getElementById('tFormula2').textContent = `$${scenario.potBeforeHero} + $${scenario.alreadyIn} = $${scenario.correctPutIn}`;
+    } else {
+      document.getElementById('tFormula1').textContent = `No call needed — the count is simply the pot.`;
+      document.getElementById('tFormula2').textContent = '';
+    }
+  } else {
+    document.getElementById('tLastBet').parentElement.style.display = 'flex';
+    document.getElementById('tTrails').parentElement.style.display = 'flex';
+    document.getElementById('tAlreadyInRow').style.display = 'none';
+    document.getElementById('tLastBet').textContent = `$${scenario.lastBet}`;
+    document.getElementById('tTrails').textContent = `$${scenario.trails}`;
+    document.getElementById('tFormula1').textContent = `3 × $${scenario.lastBet} + $${scenario.trails} = $${scenario.correctPutIn}`;
+    document.getElementById('tFormula2').textContent = '';
+  }
+  document.getElementById('tTotal').textContent = `$${scenario.correctPutIn}`;
+  document.getElementById('tNewLevel').textContent = `$${scenario.newMoneyThisAction}`;
+  document.getElementById('ticket').classList.add('show');
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').disabled = true;
+  updateScoreboard();
+}
+
+function updateScoreboard(){
+  document.getElementById('streakVal').textContent = streak>=3 ? `🔥 ${streak} STREAK` : `${streak} STREAK`;
+  document.getElementById('tallyVal').textContent = `${correct} / ${attempts} correct`;
+}
+
+document.getElementById('submitBtn').addEventListener('click', submitAnswer);
+document.getElementById('answerInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') submitAnswer();
+});
+document.getElementById('nextBtn').addEventListener('click', dealHand);
+
+document.getElementById('straddleToggle').addEventListener('change', (e)=>{
+  const dbl = document.getElementById('doubleStraddleToggle');
+  dbl.disabled = !e.target.checked;
+  if(!e.target.checked) dbl.checked = false;
+  dealHand();
+});
+document.getElementById('doubleStraddleToggle').addEventListener('change', dealHand);
+
+document.querySelectorAll('.street-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    currentStreet = btn.dataset.street;
+    document.querySelectorAll('.street-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const straddleToggle = document.getElementById('straddleToggle');
+    const dblStraddleToggle = document.getElementById('doubleStraddleToggle');
+    if(currentStreet === 'flop'){
+      straddleToggle.disabled = true;
+      dblStraddleToggle.disabled = true;
+    } else {
+      straddleToggle.disabled = false;
+      dblStraddleToggle.disabled = !straddleToggle.checked;
+    }
+    dealHand();
+  });
+});
+
+dealHand();
 </script>
 </body>
 </html>
