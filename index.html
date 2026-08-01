@@ -533,6 +533,7 @@
   <div class="street-row" id="streetRow">
     <button class="street-btn selected" data-street="preflop">Preflop</button>
     <button class="street-btn" data-street="flop">Flop</button>
+    <button class="street-btn" data-street="whole">Whole Hand</button>
   </div>
 
   <div class="stakes-row" id="stakesRow"></div>
@@ -578,6 +579,7 @@
       <div class="line"><span>New chips added this action</span><span id="tNewLevel"></span></div>
     </div>
     <div style="margin-top:16px;">
+      <button class="btn" id="proceedBtn" style="display:none;">Proceed to next action</button>
       <button class="btn secondary" id="nextBtn">Deal Next Hand</button>
     </div>
   </div>
@@ -585,10 +587,10 @@
 
 <script>
 const STAKES = [
-  {key:'2-3',   sb:2,  bb:3,  label:'2 / 3',   bg:'var(--chip-white)', fg:'var(--chip-white-text)', buyIn:'$100 – $500'},
-  {key:'5-5',   sb:5,  bb:5,  label:'5 / 5',   bg:'var(--chip-red)',   fg:'#fff',                    buyIn:'$300 – $1,500'},
-  {key:'10-10', sb:10, bb:10, label:'10 / 10', bg:'var(--chip-blue)',  fg:'#fff',                    buyIn:'$1,000 – $5,000'},
-  {key:'25-25', sb:25, bb:25, label:'25 / 25', bg:'var(--chip-green)', fg:'#08281a',                 buyIn:'$2,500 – no max*'},
+  {key:'2-2',   sb:2,  bb:2,  label:'2 / 2',   bg:'var(--chip-white)', fg:'var(--chip-white-text)', buyIn:'$100 – $500',       maxStack:1200},
+  {key:'5-5',   sb:5,  bb:5,  label:'5 / 5',   bg:'var(--chip-red)',   fg:'#fff',                    buyIn:'$300 – $1,500',     maxStack:3600},
+  {key:'10-10', sb:10, bb:10, label:'10 / 10', bg:'var(--chip-blue)',  fg:'#fff',                    buyIn:'$1,000 – $5,000',   maxStack:12000},
+  {key:'25-25', sb:25, bb:25, label:'25 / 25', bg:'var(--chip-green)', fg:'#08281a',                 buyIn:'$2,500 – no max*',  maxStack:24000},
 ];
 
 let currentStake = STAKES[0];
@@ -619,7 +621,7 @@ function rnd(n){ return Math.floor(Math.random()*n); }
 function pick(arr){ return arr[rnd(arr.length)]; }
 function roundNice(n){ return Math.max(1, Math.round(n)); }
 function roundToStake(n, stake){
-  if(stake.key === '2-3') return Math.max(1, Math.round(n));
+  if(stake.key === '2-2') return Math.max(1, Math.round(n));
   const step = 5;
   return Math.max(step, Math.round(n/step)*step);
 }
@@ -629,7 +631,7 @@ const PERSON_SVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <path d="M4 21c0-5 3.5-8 8-8s8 3 8 8" fill="var(--cream)"/>
 </svg>`;
 
-function generateScenario(stake, opts){
+function simulatePreflopRound(stake, opts){
   const buttonIdx = rnd(8);
   const sbIdx = mod8(buttonIdx+1);
   const bbIdx = mod8(buttonIdx+2);
@@ -679,71 +681,229 @@ function generateScenario(stake, opts){
   lastActors.forEach(s=>order.push(s));
 
   let raisesSoFar = willDblStraddle ? 2 : (willStraddle ? 1 : 0);
-  const heroPos = 1 + rnd(7);
+  let anyPotYet = false;
+  let liveCount = 8;
+  const livePositions = new Set([0,1,2,3,4,5,6,7]);
+  let actedSince = new Set();
+  let posPointer = 0;
+  let guard = 0;
 
-  for(let i=0;i<heroPos;i++){
-    const seatIdx = order[i];
+  while(liveCount > 1 && guard < 60){
+    guard++;
+    const pos = posPointer % 8;
+    posPointer++;
+    if(!livePositions.has(pos)) continue;
+    if(actedSince.has(pos)) break; // action closed, back to someone who already responded
+
+    const seatIdx = order[pos];
     const toCall = currentBet - contributions[seatIdx];
-    let action;
     const canRaise = raisesSoFar < 3;
-    const r = Math.random();
+    const wouldClose = (actedSince.size + 1) >= liveCount;
+    let action;
+    let forcedPot = false;
+
     if(toCall===0){
       action = (canRaise && Math.random()<0.35) ? 'raise' : 'check';
+    } else if(anyPotYet){
+      // Facing a pot-sized bet: strongly favor calling it or re-potting, rarely folding
+      const r = Math.random();
+      if(r < 0.12) action = 'fold';
+      else if(!canRaise || r < 0.72) action = 'call';
+      else action = 'raise';
     } else {
+      const r = Math.random();
       if(r < 0.38) action = 'fold';
       else if(!canRaise || r < 0.85) action = 'call';
       else action = 'raise';
     }
+    if(!anyPotYet){
+      const handWouldEnd = (action==='fold' && (liveCount-1 <= 1));
+      const roundWouldCloseWithNoBet = (action!=='raise' && wouldClose);
+      if(handWouldEnd || roundWouldCloseWithNoBet){
+        action = 'raise';
+        forcedPot = true;
+      }
+    }
 
     if(action==='fold'){
       folded.add(seatIdx);
+      livePositions.delete(pos); liveCount--;
+      actedSince.add(pos);
       log.push({seat:seatIdx, role:roleOf(seatIdx), text:'folds', kind:'fold', amount:null});
     } else if(action==='check'){
+      actedSince.add(pos);
       log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
     } else if(action==='call'){
+      actedSince.add(pos);
       contributions[seatIdx] += toCall;
       pot += toCall;
       log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
     } else {
-      const potBeforeRaise = pot;
+      const alreadyInBefore = contributions[seatIdx];
+      const lastBetBefore = currentBet;
+      const potBeforeThis = pot;
       const callPart = toCall;
-      const maxTotal = potBeforeRaise + 2*callPart;
+      const maxTotal = potBeforeThis + 2*callPart;
       const minTotal = callPart + stake.bb;
-      const factor = pick([0.5, 0.66, 0.75, 1, 1]);
-      let totalPutIn = roundToStake(factor*maxTotal, stake);
+      const stackCeiling = stake.maxStack - alreadyInBefore;
+      const effectiveMax = forcedPot ? maxTotal : Math.min(maxTotal, Math.max(stackCeiling, minTotal));
+      const factor = forcedPot ? 1 : (anyPotYet ? pick([0.75, 1, 1, 1]) : pick([0.5, 0.66, 0.75, 1, 1]));
+      let totalPutIn = roundToStake(factor*effectiveMax, stake);
       if(totalPutIn < minTotal) totalPutIn = minTotal;
-      if(totalPutIn > maxTotal) totalPutIn = maxTotal;
+      if(totalPutIn > effectiveMax) totalPutIn = effectiveMax;
       const potted = totalPutIn === maxTotal;
+      if(potted) anyPotYet = true;
       contributions[seatIdx] += totalPutIn;
       pot += totalPutIn;
       currentBet = contributions[seatIdx];
       raisesSoFar++;
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted});
+      actedSince = new Set([pos]);
+
+      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted};
+      if(potted){
+        const callHeroThis = lastBetBefore - alreadyInBefore;
+        entry.quiz = true;
+        entry.callHero = callHeroThis;
+        entry.potBeforeHero = potBeforeThis;
+        entry.lastBet = lastBetBefore;
+        entry.alreadyIn = alreadyInBefore;
+        entry.trails = potBeforeThis - lastBetBefore - alreadyInBefore;
+        entry.correctPutIn = alreadyInBefore + totalPutIn;
+        entry.newMoneyThisAction = totalPutIn;
+      }
+      log.push(entry);
     }
   }
 
-  const heroIdx = order[heroPos];
-  const callHero = currentBet - contributions[heroIdx];
-  const potBeforeHero = pot;
-  const lastBet = currentBet;
-  const alreadyIn = contributions[heroIdx];
-  const trails = potBeforeHero - lastBet - alreadyIn;
-  const correctPutIn = potBeforeHero + 2*lastBet - alreadyIn; // total count = new total in front of the seat
-  const newMoneyThisAction = correctPutIn - alreadyIn;
-
   return {
-    stake, buttonIdx, sbIdx, bbIdx, straddleIdx, dblStraddleIdx, willStraddle, willDblStraddle,
-    order, folded, log, contributions,
-    heroIdx, callHero, potBeforeHero, lastBet, trails, alreadyIn,
-    correctPutIn, newMoneyThisAction, roleOf
+    buttonIdx, sbIdx, bbIdx, straddleIdx, dblStraddleIdx, willStraddle, willDblStraddle,
+    log, contributions, folded, pot, roleOf
   };
+}
+
+function generateScenario(stake, opts){
+  const r = simulatePreflopRound(stake, opts);
+  return {
+    stake, buttonIdx:r.buttonIdx, sbIdx:r.sbIdx, bbIdx:r.bbIdx, straddleIdx:r.straddleIdx, dblStraddleIdx:r.dblStraddleIdx,
+    willStraddle:r.willStraddle, willDblStraddle:r.willDblStraddle,
+    log:r.log, contributions:r.contributions, folded:r.folded, roleOf:r.roleOf
+  };
+}
+
+function simulateStreet(stake, order, startingPot, roleOf, forceGuarantee, priorStreetsUsed){
+  if(forceGuarantee === undefined) forceGuarantee = true;
+  if(!priorStreetsUsed) priorStreetsUsed = new Array(8).fill(0);
+  const contributions = new Array(8).fill(0);
+  let pot = startingPot;
+  let currentBet = 0;
+  const folded = new Set();
+  const log = [];
+
+  let raisesSoFar = 0;
+  let anyPotYet = false;
+  let liveCount = order.length;
+  const livePositions = new Set(order.map((_,i)=>i));
+  let actedSince = new Set();
+  let posPointer = 0;
+  let guard = 0;
+  const N = order.length;
+
+  while(liveCount > 1 && guard < 60){
+    guard++;
+    const pos = posPointer % N;
+    posPointer++;
+    if(!livePositions.has(pos)) continue;
+    if(actedSince.has(pos)) break;
+
+    const seatIdx = order[pos];
+    const toCall = currentBet - contributions[seatIdx];
+    const canRaise = raisesSoFar < 3;
+    const wouldClose = (actedSince.size + 1) >= liveCount;
+    let action;
+    let forcedPot = false;
+
+    if(toCall===0){
+      action = (canRaise && Math.random()<0.45) ? 'raise' : 'check';
+    } else if(anyPotYet){
+      const r = Math.random();
+      if(r < 0.12) action = 'fold';
+      else if(!canRaise || r < 0.72) action = 'call';
+      else action = 'raise';
+    } else {
+      const r = Math.random();
+      if(r < 0.35) action = 'fold';
+      else if(!canRaise || r < 0.82) action = 'call';
+      else action = 'raise';
+    }
+    if(forceGuarantee && !anyPotYet){
+      const handWouldEnd = (action==='fold' && (liveCount-1 <= 1));
+      const roundWouldCloseWithNoBet = (action!=='raise' && wouldClose);
+      if(handWouldEnd || roundWouldCloseWithNoBet){
+        action = 'raise';
+        forcedPot = true;
+      }
+    }
+
+    if(action==='fold'){
+      folded.add(seatIdx);
+      livePositions.delete(pos); liveCount--;
+      actedSince.add(pos);
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'folds', kind:'fold', amount:null});
+    } else if(action==='check'){
+      actedSince.add(pos);
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
+    } else if(action==='call'){
+      actedSince.add(pos);
+      contributions[seatIdx] += toCall;
+      pot += toCall;
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
+    } else {
+      const alreadyInBefore = contributions[seatIdx];
+      const lastBetBefore = currentBet;
+      const potBeforeThis = pot;
+      const callPart = toCall;
+      const maxTotal = potBeforeThis + 2*callPart;
+      const minTotal = callPart + stake.bb;
+      const totalCommittedSoFar = alreadyInBefore + priorStreetsUsed[seatIdx];
+      const stackCeiling = stake.maxStack - totalCommittedSoFar;
+      const effectiveMax = forcedPot ? maxTotal : Math.min(maxTotal, Math.max(stackCeiling, minTotal));
+      const factor = forcedPot ? 1 : (anyPotYet ? pick([0.75, 1, 1, 1]) : pick([0.33, 0.5, 0.66, 0.75, 1]));
+      let totalPutIn = roundToStake(factor*effectiveMax, stake);
+      if(totalPutIn < minTotal) totalPutIn = minTotal;
+      if(totalPutIn > effectiveMax) totalPutIn = effectiveMax;
+      const potted = totalPutIn === maxTotal;
+      if(potted) anyPotYet = true;
+      contributions[seatIdx] += totalPutIn;
+      pot += totalPutIn;
+      currentBet = contributions[seatIdx];
+      raisesSoFar++;
+      actedSince = new Set([pos]);
+      const verb = alreadyInBefore===0 && lastBetBefore===0 ? 'bets' : 'raises to';
+
+      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`${verb} <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted};
+      if(potted){
+        const callHeroThis = lastBetBefore - alreadyInBefore;
+        entry.quiz = true;
+        entry.callHero = callHeroThis;
+        entry.potBeforeHero = potBeforeThis;
+        entry.lastBet = lastBetBefore;
+        entry.alreadyIn = alreadyInBefore;
+        entry.trails = potBeforeThis - lastBetBefore - alreadyInBefore;
+        entry.correctPutIn = alreadyInBefore + totalPutIn;
+        entry.newMoneyThisAction = totalPutIn;
+      }
+      log.push(entry);
+    }
+  }
+
+  return { log, contributions, folded, pot };
 }
 
 function generateFlopScenario(stake){
   const buttonIdx = rnd(8);
-  const liveCount = 2 + rnd(4); // 2..5 players saw the flop
+  const numSawFlop = 2 + rnd(4); // 2..5 players saw the flop
   const liveSet = new Set();
-  while(liveSet.size < liveCount) liveSet.add(rnd(8));
+  while(liveSet.size < numSawFlop) liveSet.add(rnd(8));
   const preflopFolded = new Set();
   for(let i=0;i<8;i++) if(!liveSet.has(i)) preflopFolded.add(i);
 
@@ -755,73 +915,46 @@ function generateFlopScenario(stake){
   }
 
   const carryoverPot = roundToStake(stake.bb * (4 + rnd(20)), stake);
-  const contributions = new Array(8).fill(0);
-  let pot = carryoverPot;
-  let currentBet = 0;
-  const folded = new Set();
-  const log = [{info:true, text:`&rarr; The pot carries <b>$${carryoverPot}</b> to the flop. ${liveCount} players are still in the hand.`}];
-
   const roleOf = (idx)=> idx===buttonIdx ? 'BTN' : '';
-
-  let raisesSoFar = 0;
-  const heroPos = order.length===2 ? 1 : (1 + rnd(order.length-1));
-
-  for(let i=0;i<heroPos;i++){
-    const seatIdx = order[i];
-    const toCall = currentBet - contributions[seatIdx];
-    let action;
-    const canRaise = raisesSoFar < 3;
-    const r = Math.random();
-    if(toCall===0){
-      action = (canRaise && Math.random()<0.45) ? 'raise' : 'check';
-    } else {
-      if(r < 0.35) action = 'fold';
-      else if(!canRaise || r < 0.82) action = 'call';
-      else action = 'raise';
-    }
-
-    if(action==='fold'){
-      folded.add(seatIdx);
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'folds', kind:'fold', amount:null});
-    } else if(action==='check'){
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
-    } else if(action==='call'){
-      contributions[seatIdx] += toCall;
-      pot += toCall;
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
-    } else {
-      const potBeforeRaise = pot;
-      const callPart = toCall;
-      const maxTotal = potBeforeRaise + 2*callPart;
-      const minTotal = callPart + stake.bb;
-      const factor = pick([0.33, 0.5, 0.66, 0.75, 1]);
-      let totalPutIn = roundToStake(factor*maxTotal, stake);
-      if(totalPutIn < minTotal) totalPutIn = minTotal;
-      if(totalPutIn > maxTotal) totalPutIn = maxTotal;
-      const potted = totalPutIn === maxTotal;
-      contributions[seatIdx] += totalPutIn;
-      pot += totalPutIn;
-      currentBet = contributions[seatIdx];
-      raisesSoFar++;
-      const verb = currentBet===totalPutIn && raisesSoFar===1 && callPart===0 ? 'bets' : 'raises to';
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`${verb} <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted});
-    }
-  }
-
-  const heroIdx = order[heroPos];
-  const callHero = currentBet - contributions[heroIdx];
-  const potBeforeHero = pot;
-  const lastBet = currentBet;
-  const alreadyIn = contributions[heroIdx];
-  const trails = potBeforeHero - lastBet - alreadyIn;
-  const correctPutIn = potBeforeHero + 2*lastBet - alreadyIn;
-  const newMoneyThisAction = correctPutIn - alreadyIn;
+  const lead = [{info:true, text:`&rarr; The pot carries <b>$${carryoverPot}</b> to the flop. ${numSawFlop} players are still in the hand.`}];
+  const res = simulateStreet(stake, order, carryoverPot, roleOf);
 
   return {
     stake, buttonIdx, street:'flop', carryoverPot, preflopFolded,
-    order, folded, log, contributions,
-    heroIdx, callHero, potBeforeHero, lastBet, trails, alreadyIn,
-    correctPutIn, newMoneyThisAction, roleOf
+    log: lead.concat(res.log), contributions: res.contributions, folded: res.folded, roleOf
+  };
+}
+
+function generateWholeHandScenario(stake, opts){
+  const pre = simulatePreflopRound(stake, opts);
+  let combinedLog = pre.log.slice();
+  const cumulativeFolded = new Set(pre.folded);
+  let liveSeats = [];
+  for(let i=0;i<8;i++) if(!cumulativeFolded.has(i)) liveSeats.push(i);
+  let pot = pre.pot;
+  const stackUsed = pre.contributions.slice();
+
+  const streetNames = ['FLOP','TURN','RIVER'];
+  for(const name of streetNames){
+    if(liveSeats.length <= 1) break;
+    const order = [];
+    for(let k=1;k<=8;k++){
+      const seat = mod8(pre.buttonIdx+k);
+      if(liveSeats.includes(seat)) order.push(seat);
+    }
+    combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name});
+    const res = simulateStreet(stake, order, pot, pre.roleOf, false, stackUsed);
+    combinedLog = combinedLog.concat(res.log);
+    res.folded.forEach(s=>cumulativeFolded.add(s));
+    liveSeats = liveSeats.filter(s=>!res.folded.has(s));
+    pot = res.pot;
+    for(let i=0;i<8;i++) stackUsed[i] += res.contributions[i];
+  }
+
+  return {
+    stake, buttonIdx:pre.buttonIdx, sbIdx:pre.sbIdx, bbIdx:pre.bbIdx, straddleIdx:pre.straddleIdx, dblStraddleIdx:pre.dblStraddleIdx,
+    willStraddle:pre.willStraddle, willDblStraddle:pre.willDblStraddle,
+    log: combinedLog, folded: cumulativeFolded, roleOf: pre.roleOf
   };
 }
 
@@ -831,7 +964,7 @@ function seatPos(i, rx, ry){
 }
 
 function chipColorFor(stake){
-  const map = {'2-3':'#f4f0e6','5-5':'#ff4d6d','10-10':'#2f8fff','25-25':'#2be283'};
+  const map = {'2-2':'#f4f0e6','5-5':'#ff4d6d','10-10':'#2f8fff','25-25':'#2be283'};
   return map[stake.key] || '#ffcc33';
 }
 
@@ -839,6 +972,9 @@ let seatDivBySeat = {};
 let chipDivBySeat = {};
 let dealTimer = null;
 let currentSkip = null;
+let currentQuiz = null;
+let pendingResumeSeatDiv = null;
+let pendingResumeIdx = null;
 
 function renderSeatsBase(sc){
   const layer = document.getElementById('seatLayer');
@@ -910,8 +1046,8 @@ function setPotTag(div, potted){
   }
 }
 
-function revealHeroPot(sc){
-  const seatIdx = sc.heroIdx;
+function revealQuizChip(sc, q){
+  const seatIdx = q.seat;
   let div = chipDivBySeat[seatIdx];
   if(!div){
     const color = chipColorFor(sc.stake);
@@ -936,7 +1072,7 @@ function revealHeroPot(sc){
   setTimeout(()=>{
     const amt = document.createElement('div');
     amt.className = 'amt';
-    amt.textContent = `$${sc.correctPutIn}`;
+    amt.textContent = `$${q.correctPutIn}`;
     div.appendChild(amt);
   }, 600);
 }
@@ -953,16 +1089,31 @@ function applyEntryVisual(sc, entry){
   }
 }
 
-function renderQuestion(sc){
-  const q = document.getElementById('questionText');
-  q.innerHTML = `<b>What's the pot size bet?</b>`;
+function applyStreetTransition(sc, entry){
+  chipDivBySeat = {};
+  document.getElementById('chipLayer').innerHTML = '';
+  showCenterPot(entry.potTotal);
+  document.getElementById('questionText').innerHTML = `<b style="font-family:var(--font-display);font-size:28px;letter-spacing:3px;color:var(--brass-bright);">${entry.streetName}</b>`;
 }
 
 function animateDeal(sc, startIdx){
   let idx = startIdx || 0;
   function doStep(){
-    if(idx >= sc.log.length){ finishDeal(sc); return; }
+    if(idx >= sc.log.length){ handComplete(sc); return; }
     const entry = sc.log[idx];
+    if(entry.quiz){
+      presentQuiz(sc, entry, idx);
+      return;
+    }
+    if(entry.street){
+      applyStreetTransition(sc, entry);
+      idx++;
+      dealTimer = setTimeout(()=>{
+        document.getElementById('questionText').innerHTML = `Dealing the hand&hellip; <button id="skipBtn" class="btn secondary" style="padding:5px 12px;font-size:12px;margin-left:6px;">Skip ahead</button>`;
+        doStep();
+      }, 1100);
+      return;
+    }
     applyEntryVisual(sc, entry);
     idx++;
     dealTimer = setTimeout(doStep, 520 + Math.floor(Math.random()*260));
@@ -971,25 +1122,50 @@ function animateDeal(sc, startIdx){
     clearTimeout(dealTimer);
     while(idx < sc.log.length){
       const entry = sc.log[idx];
+      if(entry.quiz){
+        presentQuiz(sc, entry, idx);
+        return;
+      }
+      if(entry.street){
+        applyStreetTransition(sc, entry);
+        idx++;
+        continue;
+      }
       applyEntryVisual(sc, entry);
       idx++;
     }
-    finishDeal(sc);
+    handComplete(sc);
   };
   dealTimer = setTimeout(doStep, 450);
 }
 
-function finishDeal(sc){
+function presentQuiz(sc, entry, idx){
   currentSkip = null;
-  const heroDiv = seatDivBySeat[sc.heroIdx];
-  heroDiv.classList.add('hero');
-  const statusEl = heroDiv.querySelector('.status');
+  currentQuiz = entry;
+  currentQuiz._resumeIdx = idx + 1;
+  answered = false;
+  const seatDiv = seatDivBySeat[entry.seat];
+  seatDiv.classList.add('hero');
+  const statusEl = seatDiv.querySelector('.status');
   statusEl.textContent = 'POT';
   statusEl.classList.add('pot-status');
-  renderQuestion(sc);
+  document.getElementById('questionText').innerHTML = `<b>What's the pot size bet?</b>`;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('ticket').classList.remove('show');
+  document.getElementById('proceedBtn').style.display = 'none';
+  document.getElementById('answerInput').value = '';
   document.getElementById('answerInput').disabled = false;
   document.getElementById('submitBtn').disabled = false;
   document.getElementById('answerInput').focus();
+}
+
+function handComplete(sc){
+  currentSkip = null;
+  currentQuiz = null;
+  document.getElementById('questionText').innerHTML = `<b>Hand complete.</b>`;
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').disabled = true;
 }
 
 document.getElementById('questionText').addEventListener('click', (e)=>{
@@ -999,8 +1175,16 @@ document.getElementById('questionText').addEventListener('click', (e)=>{
 function dealHand(){
   if(dealTimer) clearTimeout(dealTimer);
   currentSkip = null;
+  currentQuiz = null;
+  pendingResumeSeatDiv = null;
+  pendingResumeIdx = null;
+  document.getElementById('proceedBtn').style.display = 'none';
   if(currentStreet === 'flop'){
     scenario = generateFlopScenario(currentStake);
+  } else if(currentStreet === 'whole'){
+    const straddleOn = document.getElementById('straddleToggle').checked;
+    const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
+    scenario = generateWholeHandScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn});
   } else {
     const straddleOn = document.getElementById('straddleToggle').checked;
     const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
@@ -1032,29 +1216,30 @@ function dealHand(){
 }
 
 function submitAnswer(){
-  if(answered || !scenario) return;
+  if(answered || !currentQuiz) return;
   const val = parseInt(document.getElementById('answerInput').value, 10);
   if(isNaN(val)) return;
+  const q = currentQuiz;
   answered = true;
   attempts++;
   const fb = document.getElementById('feedback');
-  if(val === scenario.correctPutIn){
+  if(val === q.correctPutIn){
     correct++; streak++;
-    fb.textContent = `Correct — the count is $${scenario.correctPutIn}! 🎉`;
+    fb.textContent = `Correct — the count is $${q.correctPutIn}! 🎉`;
     fb.className = 'feedback good';
   } else {
     streak = 0;
-    fb.textContent = `Not quite. The count is $${scenario.correctPutIn} — here's the math.`;
+    fb.textContent = `Not quite. The count is $${q.correctPutIn} — here's the math.`;
     fb.className = 'feedback bad';
   }
-  revealHeroPot(scenario);
-  if(scenario.callHero === 0){
+  revealQuizChip(scenario, q);
+  if(q.callHero === 0){
     document.getElementById('tLastBet').parentElement.style.display = 'none';
     document.getElementById('tTrails').parentElement.style.display = 'none';
     document.getElementById('tAlreadyInRow').style.display = 'none';
-    if(scenario.alreadyIn > 0){
+    if(q.alreadyIn > 0){
       document.getElementById('tFormula1').textContent = `No one's bet more than what you already have in — the count is the pot plus what's already yours:`;
-      document.getElementById('tFormula2').textContent = `$${scenario.potBeforeHero} + $${scenario.alreadyIn} = $${scenario.correctPutIn}`;
+      document.getElementById('tFormula2').textContent = `$${q.potBeforeHero} + $${q.alreadyIn} = $${q.correctPutIn}`;
     } else {
       document.getElementById('tFormula1').textContent = `No call needed — the count is simply the pot.`;
       document.getElementById('tFormula2').textContent = '';
@@ -1063,17 +1248,45 @@ function submitAnswer(){
     document.getElementById('tLastBet').parentElement.style.display = 'flex';
     document.getElementById('tTrails').parentElement.style.display = 'flex';
     document.getElementById('tAlreadyInRow').style.display = 'none';
-    document.getElementById('tLastBet').textContent = `$${scenario.lastBet}`;
-    document.getElementById('tTrails').textContent = `$${scenario.trails}`;
-    document.getElementById('tFormula1').textContent = `3 × $${scenario.lastBet} + $${scenario.trails} = $${scenario.correctPutIn}`;
+    document.getElementById('tLastBet').textContent = `$${q.lastBet}`;
+    document.getElementById('tTrails').textContent = `$${q.trails}`;
+    document.getElementById('tFormula1').textContent = `3 × $${q.lastBet} + $${q.trails} = $${q.correctPutIn}`;
     document.getElementById('tFormula2').textContent = '';
   }
-  document.getElementById('tTotal').textContent = `$${scenario.correctPutIn}`;
-  document.getElementById('tNewLevel').textContent = `$${scenario.newMoneyThisAction}`;
+  document.getElementById('tTotal').textContent = `$${q.correctPutIn}`;
+  document.getElementById('tNewLevel').textContent = `$${q.newMoneyThisAction}`;
   document.getElementById('ticket').classList.add('show');
   document.getElementById('answerInput').disabled = true;
   document.getElementById('submitBtn').disabled = true;
   updateScoreboard();
+
+  pendingResumeSeatDiv = seatDivBySeat[q.seat];
+  pendingResumeIdx = q._resumeIdx;
+  document.getElementById('proceedBtn').style.display = 'inline-block';
+}
+
+function proceedToNextAction(){
+  if(!pendingResumeSeatDiv) return;
+  const seatDiv = pendingResumeSeatDiv;
+  const resumeIdx = pendingResumeIdx;
+  pendingResumeSeatDiv = null;
+  pendingResumeIdx = null;
+  document.getElementById('proceedBtn').style.display = 'none';
+  seatDiv.classList.remove('hero');
+  const statusEl = seatDiv.querySelector('.status');
+  statusEl.classList.remove('pot-status');
+  statusEl.textContent = '';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  document.getElementById('ticket').classList.remove('show');
+  currentQuiz = null;
+  const hasMoreQuizzes = scenario.log.slice(resumeIdx).some(e=>e.quiz);
+  if(hasMoreQuizzes){
+    document.getElementById('questionText').innerHTML = `Dealing the hand&hellip; <button id="skipBtn" class="btn secondary" style="padding:5px 12px;font-size:12px;margin-left:6px;">Skip ahead</button>`;
+    animateDeal(scenario, resumeIdx);
+  } else {
+    handComplete(scenario);
+  }
 }
 
 function updateScoreboard(){
@@ -1086,6 +1299,7 @@ document.getElementById('answerInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') submitAnswer();
 });
 document.getElementById('nextBtn').addEventListener('click', dealHand);
+document.getElementById('proceedBtn').addEventListener('click', proceedToNextAction);
 
 document.getElementById('straddleToggle').addEventListener('change', (e)=>{
   const dbl = document.getElementById('doubleStraddleToggle');
