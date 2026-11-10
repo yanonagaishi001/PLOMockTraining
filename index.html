@@ -70,7 +70,7 @@
   /* Controls */
   .street-row{
     display:grid;
-    grid-template-columns:repeat(3,1fr);
+    grid-template-columns:repeat(2,1fr);
     border:1px solid var(--ink);
     border-radius:4px;
     overflow:hidden;
@@ -137,14 +137,14 @@
   .toggle{
     display:flex;
     align-items:center;
-    gap:8px;
-    min-height:32px;
+    gap:10px;
+    min-height:44px;
     font-size:15px;
     cursor:pointer;
     user-select:none;
   }
   .toggle input{
-    width:18px;height:18px;
+    width:22px;height:22px;
     margin:0;
     accent-color:var(--ink);
     cursor:pointer;
@@ -293,6 +293,13 @@
   .answer-row input:focus-visible{outline:2px solid var(--ink);outline-offset:1px;}
   .answer-row input::placeholder{color:#7a8288;}
 
+  .timer{display:flex;align-items:center;gap:10px;margin:0 0 12px;}
+  .timer[hidden]{display:none;}
+  .timer-track{flex:1;height:8px;border-radius:4px;background:var(--rule);overflow:hidden;}
+  .timer-fill{height:100%;width:100%;background:var(--ink);}
+  .timer-num{min-width:2.4em;text-align:right;font-weight:700;font-size:18px;}
+  .timer.low .timer-fill{background:var(--bad);}
+  .timer.low .timer-num{color:var(--bad);}
   .btn{
     min-height:44px;
     padding:8px 18px;
@@ -402,10 +409,11 @@
   .feedback.good, .feedback.bad{animation:fbin .22s ease;}
   .ticket.show{animation:fbin .25s ease;}
   @keyframes fbin{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+  .hdr-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:6px;}
   .sound-btn{
-    margin-top:6px;
-    min-height:32px;
-    padding:4px 10px;
+    margin-top:0;
+    min-height:40px;
+    padding:4px 12px;
     border:1px solid var(--rule-strong);
     border-radius:4px;
     background:var(--surface);
@@ -462,13 +470,15 @@
     <div class="scoreboard">
       <div class="streak" id="streakVal">Streak 0</div>
       <div class="tally" id="tallyVal">0 / 0 correct</div>
-      <button class="sound-btn" id="soundBtn" type="button" aria-pressed="true">Sound on</button>
+      <div class="hdr-btns">
+        <button class="sound-btn" id="timerToggle" type="button" aria-pressed="false">Timer off</button>
+        <button class="sound-btn" id="soundBtn" type="button" aria-pressed="true">Sound on</button>
+      </div>
     </div>
   </div>
 
   <div class="street-row" id="streetRow">
     <button class="street-btn selected" data-street="preflop">Preflop</button>
-    <button class="street-btn" data-street="flop">Flop</button>
     <button class="street-btn" data-street="whole">Whole Hand</button>
   </div>
 
@@ -479,6 +489,11 @@
       <input type="checkbox" id="straddleToggle">
       <span class="switch"></span>
       Straddle
+    </label>
+    <label class="toggle" style="display:none">
+      <input type="checkbox" id="allInToggle">
+      <span class="switch"></span>
+      All-ins
     </label>
     <label class="toggle" id="dblStraddleLabel">
       <input type="checkbox" id="doubleStraddleToggle" disabled>
@@ -498,8 +513,9 @@
 
   <div class="answer-panel">
     <div class="question" id="questionText"></div>
+    <div class="timer" id="timer" hidden aria-live="off"><div class="timer-track"><div class="timer-fill" id="timerFill"></div></div><span class="timer-num" id="timerNum">20</span></div>
     <div class="answer-row">
-      <input type="number" inputmode="numeric" id="answerInput" placeholder="Total amount ($)">
+      <input type="number" inputmode="numeric" enterkeyhint="done" autocomplete="off" id="answerInput" placeholder="Total amount ($)">
       <button class="btn" id="submitBtn">Lock it in</button>
     </div>
     <div class="feedback" id="feedback"></div>
@@ -608,6 +624,12 @@ const Sound = (()=>{
       const c = audio(); if(!c) return;
       tone(c, 200, 0, 0.28, 'triangle', 0.12);
       tone(c, 150, 0.1, 0.3, 'triangle', 0.1);
+    },
+    buzz(){
+      const c = audio(); if(!c) return;
+      tone(c, 110, 0, 0.55, 'sawtooth', 0.16);
+      tone(c, 117, 0, 0.55, 'square', 0.08);
+      tone(c, 82, 0.02, 0.5, 'sawtooth', 0.1);
     },
     knock(){
       const c = audio(); if(!c) return;
@@ -741,6 +763,25 @@ function simulatePreflopRound(stake, opts){
   contributions[sbIdx] = stake.sb;
   contributions[bbIdx] = stake.bb;
   let pot = stake.sb + stake.bb;
+  // All-in option: one or two short stacks (not in the blinds) that can run out of chips
+  const stacks = new Array(8).fill(effStack);
+  const allInPos = new Set();
+  const allInSeats = [];
+  const shortSeats = new Set();
+  if(opts && opts.allIn){
+    const cands = [];
+    for(let k=3;k<8;k++) cands.push(mod8(buttonIdx+k)); // seats after the BB, plus the button
+    cands.push(buttonIdx);
+    const nShort = Math.random() < 0.65 ? 1 : 2;
+    while(shortSeats.size < nShort){
+      const sd = cands[rnd(cands.length)];
+      if(sd === sbIdx || sd === bbIdx) continue;
+      shortSeats.add(sd);
+    }
+    shortSeats.forEach(sd=>{
+      stacks[sd] = Math.min(effStack, roundToStake(stake.bb * (6 + rnd(24)), stake));
+    });
+  }
   let currentBet = stake.bb;
   const folded = new Set();
   const log = [];
@@ -748,8 +789,8 @@ function simulatePreflopRound(stake, opts){
   log.push({seat:sbIdx, role:'SB', text:`posts small blind <b>$${stake.sb}</b>`, blind:true, kind:'blind', amount:stake.sb});
   log.push({seat:bbIdx, role:'BB', text:`posts big blind <b>$${stake.bb}</b>`, blind:true, kind:'blind', amount:stake.bb});
 
-  const willStraddle = !!(opts && opts.straddle) && Math.random() < 0.65;
-  const willDblStraddle = willStraddle && !!(opts && opts.doubleStraddle) && Math.random() < 0.4;
+  const willStraddle = !!(opts && opts.straddle);
+  const willDblStraddle = willStraddle && !!(opts && opts.doubleStraddle);
 
   if(willStraddle){
     const strAmt = 2*stake.bb;
@@ -793,15 +834,19 @@ function simulatePreflopRound(stake, opts){
     const pos = posPointer % 8;
     posPointer++;
     if(!livePositions.has(pos)) continue;
+    if(allInPos.has(pos)) continue;
     if(actedSince.has(pos)) break; // action closed, back to someone who already responded
 
     const seatIdx = order[pos];
     const toCall = currentBet - contributions[seatIdx];
-    const remaining = effStack - contributions[seatIdx];   // chips this seat can still put in
+    const remaining = stacks[seatIdx] - contributions[seatIdx];   // chips this seat can still put in
     const canRaise = raisesSoFar < 3 && (remaining - toCall) >= stake.bb;
-    const wouldClose = (actedSince.size + 1) >= liveCount;
+    const wouldClose = (actedSince.size + 1) >= (liveCount - allInPos.size);
     let action = chooseAction('pre', toCall, volRaises, canRaise);
     let forcedPot = false;
+    const isShort = shortSeats.has(seatIdx);
+    if(isShort && toCall > 0 && action === 'fold' && Math.random() < 0.55) action = 'call';
+    if(isShort && toCall > 0 && remaining <= toCall && action === 'raise') action = 'call';
 
     if(!anyPotYet){
       const handWouldEnd = (action==='fold' && (liveCount-1 <= 1));
@@ -822,9 +867,12 @@ function simulatePreflopRound(stake, opts){
       log.push({seat:seatIdx, role:roleOf(seatIdx), text:'checks', kind:'check', amount:null});
     } else if(action==='call'){
       actedSince.add(pos);
-      contributions[seatIdx] += toCall;
-      pot += toCall;
-      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${toCall}</b>`, kind:'call', amount:contributions[seatIdx]});
+      const callAmt = Math.min(toCall, remaining);
+      const isAllIn = callAmt >= remaining;
+      contributions[seatIdx] += callAmt;
+      pot += callAmt;
+      if(isAllIn){ allInPos.add(pos); allInSeats.push(seatIdx); }
+      log.push({seat:seatIdx, role:roleOf(seatIdx), text:`calls <b>$${callAmt}</b>${isAllIn?' (all in)':''}`, kind:'call', amount:contributions[seatIdx], allIn:isAllIn});
     } else {
       const alreadyInBefore = contributions[seatIdx];
       const lastBetBefore = currentBet;
@@ -832,7 +880,7 @@ function simulatePreflopRound(stake, opts){
       const callPart = toCall;
       const maxTotal = potBeforeThis + 2*callPart;
       const minTotal = callPart + stake.bb;
-      const stackCeiling = effStack - alreadyInBefore;
+      const stackCeiling = stacks[seatIdx] - alreadyInBefore;
       const factor = forcedPot ? 1 : pickFactor('pre', volRaises);
       let totalPutIn = roundToStake(factor*maxTotal, stake);
       if(totalPutIn < minTotal) totalPutIn = minTotal;
@@ -845,9 +893,13 @@ function simulatePreflopRound(stake, opts){
       raisesSoFar++;
       volRaises++;
       actedSince = new Set([pos]);
+      const raiseAllIn = contributions[seatIdx] >= stacks[seatIdx];
+      if(raiseAllIn){ allInPos.add(pos); allInSeats.push(seatIdx); }
 
-      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted};
+      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>${raiseAllIn?' (all in)':''}`, kind:'raise', amount:contributions[seatIdx], potted, allIn:raiseAllIn};
       if(potted){
+        // chips from short all-ins that sit below the bet (they count in the pot but are not the last bet)
+        entry.shortAllIn = allInSeats.filter(sd=>sd!==seatIdx && contributions[sd] < lastBetBefore).reduce((a,sd)=>a+contributions[sd],0);
         const callHeroThis = lastBetBefore - alreadyInBefore;
         entry.quiz = true;
         entry.callHero = callHeroThis;
@@ -864,16 +916,28 @@ function simulatePreflopRound(stake, opts){
 
   return {
     buttonIdx, sbIdx, bbIdx, straddleIdx, dblStraddleIdx, willStraddle, willDblStraddle,
-    log, contributions, folded, pot, roleOf, effStack
+    log, contributions, folded, pot, roleOf, effStack, allInSeats
   };
 }
 
 function dealPreflop(stake, opts, fixedStack, needFlop){
   let r, eff;
-  for(let attempt=0; attempt<30; attempt++){
+  const wantAllIn = !!(opts && opts.allIn);
+  for(let attempt=0; attempt<(wantAllIn?120:30); attempt++){
     eff = fixedStack ? fixedStack() : undefined;
     r = simulatePreflopRound(stake, Object.assign({}, opts, eff ? {effStack:eff} : {}));
-    if(r.log.some(e=>e.quiz) && (!needFlop || r.folded.size <= 6)) break;
+    let ok = r.log.some(e=>e.quiz) && (!needFlop || r.folded.size <= 6);
+    if(ok && wantAllIn){
+      // want a short all-in followed by a pot-size raise, and (for whole hands) someone still able to bet
+      const ai = r.log.findIndex(e=>e.allIn && !e.quiz);
+      const qz = r.log.findIndex((e,i)=>e.quiz && e.shortAllIn > 0);
+      ok = ai >= 0 && qz > ai;
+      if(ok && needFlop){
+        const live = []; for(let i=0;i<8;i++) if(!r.folded.has(i) && !r.allInSeats.includes(i)) live.push(i);
+        ok = live.length >= 2;
+      }
+    }
+    if(ok) break;
   }
   return r;
 }
@@ -1049,9 +1113,10 @@ function generateWholeHandScenario(stake, opts){
     const order = [];
     for(let k=1;k<=8;k++){
       const seat = mod8(pre.buttonIdx+k);
-      if(liveSeats.includes(seat)) order.push(seat);
+      if(liveSeats.includes(seat) && !(pre.allInSeats||[]).includes(seat)) order.push(seat);
     }
     combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name});
+    if(order.length < 2) continue; // the rest are all in: the board runs out with no more betting
     const wantPot = Math.random() < ({FLOP:0.92, TURN:0.85, RIVER:0.75}[name]);
     const res = simulateStreet(stake, order, pot, pre.roleOf, wantPot, stackUsed, effStack, name.toLowerCase());
     combinedLog = combinedLog.concat(res.log);
@@ -1208,6 +1273,10 @@ function applyEntryVisual(sc, entry){
   } else if(entry.kind !== 'fold' && !stEl.classList.contains('pot-status')){
     stEl.textContent = '';
   }
+  if(entry.allIn){
+    seatDiv.dataset.allin = '1';
+    stEl.textContent = 'all in';
+  }
   if(entry.kind === 'fold'){
     seatDiv.classList.add('folded');
     seatDiv.querySelector('.status').textContent = 'folded';
@@ -1225,7 +1294,7 @@ function applyStreetTransition(sc, entry){
   Object.values(seatDivBySeat).forEach(d=>{
     if(!d.classList.contains('folded')){
       const st = d.querySelector('.status');
-      if(st && !st.classList.contains('pot-status')) st.textContent = '';
+      if(st && !st.classList.contains('pot-status') && !d.dataset.allin) st.textContent = '';
     }
   });
   if(REDUCED || !old.length){
@@ -1308,9 +1377,11 @@ function presentQuiz(sc, entry, idx){
   document.getElementById('answerInput').disabled = false;
   document.getElementById('submitBtn').disabled = false;
   document.getElementById('answerInput').focus();
+  startTimer();
 }
 
 function handComplete(sc){
+  stopTimer();
   setActing(null);
   currentSkip = null;
   currentQuiz = null;
@@ -1329,22 +1400,21 @@ document.getElementById('questionText').addEventListener('click', (e)=>{
 });
 
 function dealHand(){
+  stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   currentSkip = null;
   currentQuiz = null;
   pendingResumeSeatDiv = null;
   pendingResumeIdx = null;
   document.getElementById('proceedBtn').style.display = 'none';
-  if(currentStreet === 'flop'){
-    scenario = generateFlopScenario(currentStake);
-  } else if(currentStreet === 'whole'){
+  if(currentStreet === 'whole'){
     const straddleOn = document.getElementById('straddleToggle').checked;
     const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
-    scenario = generateWholeHandScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn});
+    scenario = generateWholeHandScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn, allIn:document.getElementById('allInToggle').checked});
   } else {
     const straddleOn = document.getElementById('straddleToggle').checked;
     const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
-    scenario = generateScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn});
+    scenario = generateScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn, allIn:document.getElementById('allInToggle').checked});
   }
   answered = false;
   chipDivBySeat = {};
@@ -1371,24 +1441,60 @@ function dealHand(){
   animateDeal(scenario, leadCount);
 }
 
-function submitAnswer(){
+const TIME_LIMIT = 20000;
+let timerHandle = null;
+function timerOn(){ return document.getElementById('timerToggle').getAttribute('aria-pressed') === 'true'; }
+function stopTimer(){
+  if(timerHandle){ clearInterval(timerHandle); timerHandle = null; }
+  const t = document.getElementById('timer');
+  t.hidden = true; t.classList.remove('low');
+}
+function startTimer(){
+  stopTimer();
+  if(!timerOn()) return;
+  const t = document.getElementById('timer');
+  const fill = document.getElementById('timerFill');
+  const num = document.getElementById('timerNum');
+  const t0 = performance.now();
+  t.hidden = false;
+  const tick = ()=>{
+    const left = Math.max(0, TIME_LIMIT - (performance.now() - t0));
+    fill.style.width = (left / TIME_LIMIT * 100) + '%';
+    num.textContent = Math.ceil(left/1000);
+    t.classList.toggle('low', left <= 5000);
+    if(left <= 0){ stopTimer(); submitAnswer(true); }
+  };
+  tick();
+  timerHandle = setInterval(tick, 100);
+}
+document.getElementById('timerToggle').addEventListener('click', (e)=>{
+  const on = !timerOn();
+  e.currentTarget.setAttribute('aria-pressed', on ? 'true' : 'false');
+  e.currentTarget.textContent = on ? 'Timer on' : 'Timer off';
+  if(timerOn() && currentQuiz && !answered) startTimer(); else stopTimer();
+});
+
+function submitAnswer(timedOut){
   if(answered || !currentQuiz) return;
   const val = parseInt(document.getElementById('answerInput').value, 10);
-  if(isNaN(val)) return;
+  if(timedOut !== true && isNaN(val)) return;
+  stopTimer();
   const q = currentQuiz;
   answered = true;
   attempts++;
   const fb = document.getElementById('feedback');
-  if(val === q.correctPutIn){
+  if(timedOut !== true && val === q.correctPutIn){
     correct++; streak++;
     fb.textContent = `Correct. The count is $${q.correctPutIn}.`;
     fb.className = 'feedback good';
     Sound.good();
   } else {
     streak = 0;
-    fb.textContent = `Not quite. The count is $${q.correctPutIn}. Here is the math.`;
+    fb.textContent = timedOut === true
+      ? `Time's up. The count is $${q.correctPutIn}. Here is the math.`
+      : `Not quite. The count is $${q.correctPutIn}. Here is the math.`;
     fb.className = 'feedback bad';
-    Sound.bad();
+    if(timedOut === true) Sound.buzz(); else Sound.bad();
   }
   revealQuizChip(scenario, q);
   if(q.callHero === 0){
@@ -1409,7 +1515,8 @@ function submitAnswer(){
     document.getElementById('tLastBet').textContent = `$${q.lastBet}`;
     document.getElementById('tTrails').textContent = `$${q.trails}`;
     document.getElementById('tFormula1').textContent = `3 × $${q.lastBet} + $${q.trails} = $${q.correctPutIn}`;
-    document.getElementById('tFormula2').textContent = '';
+    document.getElementById('tFormula2').textContent = q.shortAllIn > 0
+      ? `The $${q.shortAllIn} from the short all-in is counted in the other money. It is not the last bet.` : '';
   }
   document.getElementById('tTotal').textContent = `$${q.correctPutIn}`;
   document.getElementById('tNewLevel').textContent = `$${q.newMoneyThisAction}`;
@@ -1467,6 +1574,7 @@ document.getElementById('straddleToggle').addEventListener('change', (e)=>{
   dealHand();
 });
 document.getElementById('doubleStraddleToggle').addEventListener('change', dealHand);
+document.getElementById('allInToggle').addEventListener('change', dealHand);
 
 document.querySelectorAll('.street-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1475,13 +1583,8 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
     btn.classList.add('selected');
     const straddleToggle = document.getElementById('straddleToggle');
     const dblStraddleToggle = document.getElementById('doubleStraddleToggle');
-    if(currentStreet === 'flop'){
-      straddleToggle.disabled = true;
-      dblStraddleToggle.disabled = true;
-    } else {
-      straddleToggle.disabled = false;
-      dblStraddleToggle.disabled = !straddleToggle.checked;
-    }
+    straddleToggle.disabled = false;
+    dblStraddleToggle.disabled = !straddleToggle.checked;
     dealHand();
   });
 });
