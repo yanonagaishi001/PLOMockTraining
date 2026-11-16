@@ -457,15 +457,40 @@
     .street-btn{font-size:14px;}
     .scoreboard .streak{font-size:15px;}
   }
+  /* Badge sign-in */
+  body.locked .wrap{display:none;}
+  .gate{display:none;min-height:80vh;align-items:center;justify-content:center;}
+  body.locked .gate{display:flex;}
+  .gate-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:24px 20px;}
+  .gate-card h1{font-size:22px;line-height:1.2;margin:0 0 4px;}
+  .gate-card p{margin:0 0 16px;color:var(--muted);font-size:15px;}
+  .gate-card label{display:block;font-weight:600;font-size:15px;margin-bottom:6px;}
+  .gate-card input{width:100%;min-height:48px;padding:8px 12px;font-size:20px;border:1px solid var(--rule-strong);border-radius:4px;background:#fff;color:var(--ink);margin-bottom:10px;}
+  .gate-card input:focus-visible{outline:2px solid var(--ink);outline-offset:1px;}
+  .gate-card .btn{width:100%;}
+  .gate-err{min-height:22px;color:var(--bad);font-weight:600;font-size:15px;margin-bottom:6px;}
+  .signed{margin:3px 0 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:10px;white-space:nowrap;}
+  .linkbtn{background:none;border:none;padding:0;font:inherit;color:var(--ink);text-decoration:underline;cursor:pointer;min-height:32px;padding:0 4px;}
 </style>
 </head>
-<body>
+<body class="locked">
+<div class="gate" id="gate">
+  <div class="gate-card" id="gateForm">
+    <h1>PLO Pot Trainer</h1>
+    <p>Enter your badge ID to start.</p>
+    <label for="badgeInput">Badge ID</label>
+    <input id="badgeInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Badge ID">
+    <div class="gate-err" id="gateErr" role="alert"></div>
+    <button class="btn" type="button" id="signInBtn">Sign in</button>
+  </div>
+</div>
 <div class="wrap">
 
   <div class="nameplate">
     <div class="brand">
       <h1>PLO Pot Trainer</h1>
       <p>Practice announcing the count.</p>
+      <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button></p>
     </div>
     <div class="scoreboard">
       <div class="streak" id="streakVal">Streak 0</div>
@@ -896,7 +921,7 @@ function simulatePreflopRound(stake, opts){
       const raiseAllIn = contributions[seatIdx] >= stacks[seatIdx];
       if(raiseAllIn){ allInPos.add(pos); allInSeats.push(seatIdx); }
 
-      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>${raiseAllIn?' (all in)':''}`, kind:'raise', amount:contributions[seatIdx], potted, allIn:raiseAllIn};
+      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`raises to <b>$${currentBet}</b>${raiseAllIn?' (all in)':''}`, kind:'raise', amount:contributions[seatIdx], potted, allIn:raiseAllIn, phase:'pre'};
       if(potted){
         // chips from short all-ins that sit below the bet (they count in the pot but are not the last bet)
         entry.shortAllIn = allInSeats.filter(sd=>sd!==seatIdx && contributions[sd] < lastBetBefore).reduce((a,sd)=>a+contributions[sd],0);
@@ -1035,7 +1060,7 @@ function simulateStreet(stake, order, startingPot, roleOf, forceGuarantee, prior
       actedSince = new Set([pos]);
       const verb = alreadyInBefore===0 && lastBetBefore===0 ? 'bets' : 'raises to';
 
-      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`${verb} <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted};
+      const entry = {seat:seatIdx, role:roleOf(seatIdx), text:`${verb} <b>$${currentBet}</b>`, kind:'raise', amount:contributions[seatIdx], potted, phase:phase};
       if(potted){
         const callHeroThis = lastBetBefore - alreadyInBefore;
         entry.quiz = true;
@@ -1377,6 +1402,7 @@ function presentQuiz(sc, entry, idx){
   document.getElementById('answerInput').disabled = false;
   document.getElementById('submitBtn').disabled = false;
   document.getElementById('answerInput').focus();
+  quizShownAt = performance.now();
   startTimer();
 }
 
@@ -1496,6 +1522,17 @@ function submitAnswer(timedOut){
     fb.className = 'feedback bad';
     if(timedOut === true) Sound.buzz(); else Sound.bad();
   }
+  track('answer', {
+    mode: currentStreet, stake: currentStake.key, phase: q.phase || 'pre',
+    correct: (timedOut !== true && val === q.correctPutIn),
+    answer: (timedOut === true || isNaN(val)) ? null : val,
+    correctAnswer: q.correctPutIn,
+    seconds: Math.round((performance.now() - quizShownAt) / 100) / 10,
+    timedOut: timedOut === true,
+    timerOn: timerOn(),
+    straddle: !!(scenario && scenario.willStraddle),
+    doubleStraddle: !!(scenario && scenario.willDblStraddle)
+  });
   revealQuizChip(scenario, q);
   if(q.callHero === 0){
     document.getElementById('tLastBet').parentElement.style.display = 'none';
@@ -1589,7 +1626,103 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
   });
 });
 
-dealHand();
+// ---- Tracker (Google Sheet) ----
+// Paste the web app address from the Google script here (see the setup guide).
+// While this is empty the site works offline and checks badges against LOCAL_BADGES below.
+const TRACKER_URL = '';
+const LOCAL_BADGES = ['2417777'];
+
+let currentBadge = null;
+let currentName = '';
+let sessionId = Math.random().toString(36).slice(2, 10);
+let quizShownAt = 0;
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k, v){ try{ if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} }
+
+async function trackerCall(payload){
+  const res = await fetch(TRACKER_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+// Events that could not be sent wait in a small queue and go out later.
+function readQueue(){ try{ return JSON.parse(lsGet('plo-queue') || '[]'); }catch(e){ return []; } }
+function writeQueue(q){ lsSet('plo-queue', JSON.stringify(q.slice(-500))); }
+let flushing = false;
+async function flushQueue(){
+  if(!TRACKER_URL || flushing) return;
+  const q = readQueue();
+  if(!q.length) return;
+  flushing = true;
+  try{
+    const r = await trackerCall({action:'events', events:q});
+    if(r && r.ok) writeQueue([]);
+    else if(r && r.error === 'unknown badge') writeQueue([]);
+  }catch(e){ /* try again later */ }
+  flushing = false;
+}
+function track(event, data){
+  if(!TRACKER_URL || !currentBadge) return;
+  const ev = Object.assign({badge:currentBadge, module:'plo', event:event, session:sessionId, at:new Date().toISOString()}, data || {});
+  writeQueue(readQueue().concat([ev]));
+  flushQueue();
+}
+window.addEventListener('online', flushQueue);
+
+// ---- Badge sign-in ----
+let started = false;
+function enterSite(badge, name){
+  currentBadge = badge;
+  currentName = name || '';
+  document.getElementById('badgeShow').textContent = badge;
+  document.body.classList.remove('locked');
+  track('session');
+  if(!started){ started = true; dealHand(); }
+}
+function lockSite(){
+  stopTimer();
+  if(dealTimer) clearTimeout(dealTimer);
+  currentBadge = null;
+  currentName = '';
+  lsSet('plo-badge', null);
+  lsSet('plo-name', null);
+  document.body.classList.add('locked');
+  document.getElementById('badgeInput').value = '';
+  document.getElementById('gateErr').textContent = '';
+  started = false;
+  document.getElementById('badgeInput').focus();
+}
+async function trySignIn(){
+  const v = document.getElementById('badgeInput').value.trim();
+  const err = document.getElementById('gateErr');
+  const btn = document.getElementById('signInBtn');
+  if(!v){ err.textContent = 'Enter your badge ID.'; return; }
+  if(!TRACKER_URL){
+    if(LOCAL_BADGES.includes(v)){ lsSet('plo-badge', v); enterSite(v, ''); }
+    else err.textContent = 'Badge ID not found. Check the number and try again.';
+    return;
+  }
+  btn.disabled = true; err.textContent = 'Checking...';
+  try{
+    const r = await trackerCall({action:'check', badge:v});
+    if(r && r.ok){ lsSet('plo-badge', v); lsSet('plo-name', r.name || ''); err.textContent = ''; enterSite(v, r.name); }
+    else err.textContent = 'Badge ID not found. Check the number and try again.';
+  }catch(e){
+    err.textContent = 'Could not reach the training server. Check your connection and try again.';
+  }
+  btn.disabled = false;
+}
+document.getElementById('signInBtn').addEventListener('click', trySignIn);
+document.getElementById('badgeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); trySignIn(); } });
+document.getElementById('signOutBtn').addEventListener('click', lockSite);
+const savedBadge = lsGet('plo-badge');
+if(savedBadge && (TRACKER_URL || LOCAL_BADGES.includes(savedBadge))) enterSite(savedBadge, lsGet('plo-name') || '');
+else document.getElementById('badgeInput').focus();
+flushQueue();
 </script>
 </body>
 </html>
