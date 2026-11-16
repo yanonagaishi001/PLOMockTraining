@@ -133,7 +133,7 @@
       <h2>Dealers</h2>
       <div class="filters">
         <input id="search" type="search" placeholder="Search name or badge">
-        <select id="groupSel" aria-label="Group"></select>
+        <select id="groupSel" aria-label="Shift"></select>
         <select id="statusSel" aria-label="Activity">
           <option value="all">All dealers</option>
           <option value="active7">Practiced in the last 7 days</option>
@@ -155,7 +155,7 @@
       <div class="mgrgrid">
         <div>
           <label for="addBox"><b>Add dealers</b></label>
-          <p class="sub" style="margin:2px 0 6px">One per line: badge, name, group. Group is optional. You can paste straight from a spreadsheet.</p>
+          <p class="sub" style="margin:2px 0 6px">One per line: badge, name, shift. Shift is optional. You can paste straight from a spreadsheet.</p>
           <textarea id="addBox" rows="6" placeholder="2417001, Jordan Lee, Day&#10;2417002, Sam Rivera"></textarea>
           <button class="btn" id="addBtn" type="button">Add dealers</button>
         </div>
@@ -266,7 +266,7 @@ async function load(){
 
 // ---------- rendering ----------
 const COLS = [
-  {k:'name', l:'Name'}, {k:'badge', l:'Badge'}, {k:'group', l:'Group'},
+  {k:'name', l:'Name'}, {k:'badge', l:'Badge'}, {k:'group', l:'Shift'},
   {k:'lastSeen', l:'Last visit'}, {k:'sessions', l:'Sign-ins', num:1}, {k:'questions', l:'Questions', num:1},
   {k:'acc', l:'Accuracy', num:1}, {k:'avgSeconds', l:'Avg seconds', num:1}, {k:'timeouts', l:'Timeouts', num:1}
 ];
@@ -297,7 +297,7 @@ function render(){
   ].map(t=>`<div class="tile"><div class="n">${t[0]}</div><div class="l">${t[1]}</div></div>`).join('');
   drawBars($('dailyChart'), report.daily.map(x=>({label:x.d, v:x.q, tip:`${fmtDay(x.d)}: ${x.q} questions, ${x.dealers} dealers`})));
   const groups = [...new Set(ds.map(d=>d.group).filter(Boolean))].sort();
-  $('groupSel').innerHTML = '<option value="">All groups</option>' + groups.map(g=>`<option>${esc(g)}</option>`).join('');
+  $('groupSel').innerHTML = '<option value="">All shifts</option>' + groups.map(g=>`<option>${esc(g)}</option>`).join('');
   drawHead(); drawRows();
 }
 function fmtDay(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
@@ -391,8 +391,8 @@ function drawDetail(){
   $('detail').innerHTML = `<h2>${esc(d.name || 'No name')} <span class="muted" style="font-weight:400">Badge ${esc(d.badge)}${d.group ? ' &middot; ' + esc(d.group) : ''}</span>${d.active ? '' : '<span class="removed-tag">Removed</span>'}</h2>
     <div class="mgr">
       <input id="edName" type="text" value="${esc(d.name)}" placeholder="Name" aria-label="Name">
-      <input id="edGroup" type="text" value="${esc(d.group)}" placeholder="Group" aria-label="Group">
-      <button class="btn secondary" id="edSave" type="button">Save name and group</button>
+      <input id="edGroup" type="text" value="${esc(d.group)}" placeholder="Shift" aria-label="Shift">
+      <button class="btn secondary" id="edSave" type="button">Save name and shift</button>
       ${d.active ? '<button class="btn secondary" id="edRemove" type="button">Remove from site</button>' : '<button class="btn" id="edRestore" type="button">Restore</button>'}
     </div>
     <p class="sub">${d.lastSeen ? `First visit ${fmtDate(d.firstSeen)}. Last visit ${fmtDate(d.lastSeen)}. ` : 'Has not signed in yet. '}${d.sessions} sign-ins on ${d.sessionDays} different days. ${d.questions} questions answered${a === null ? '' : ', ' + a + '% correct'}${d.avgSeconds === null ? '' : ', ' + d.avgSeconds + ' seconds on average'}${d.timeouts ? ', ' + d.timeouts + ' timeouts' : ''}.</p>
@@ -481,7 +481,7 @@ $('rmBtn').addEventListener('click', async ()=>{
 
 // ---------- csv ----------
 function csv(){
-  const rows = [['Name','Badge','Group','Last visit','Sign-ins','Days signed in','Questions','Correct','Accuracy %','Avg seconds','Timeouts','Questions last 7 days']];
+  const rows = [['Name','Badge','Shift','Last visit','Sign-ins','Days signed in','Questions','Correct','Accuracy %','Avg seconds','Timeouts','Questions last 7 days']];
   sorted(filtered()).forEach(d=>rows.push([d.name,d.badge,d.group,d.lastSeen ? new Date(d.lastSeen).toISOString().slice(0,10) : '',d.sessions,d.sessionDays,d.questions,d.correct,pct(d.correct,d.questions) ?? '',d.avgSeconds ?? '',d.timeouts,d.last7.q]));
   const text = rows.map(r=>r.map(c=>'"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
