@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Dealer Training Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap');
+  :root{
+    --page:#f4f5f6; --surface:#fff; --ink:#16191c; --muted:#5b6369; --rule:#d3d8dc; --rule-strong:#8d959b;
+    --good:#17693f; --bad:#b3261e; --bar:#2f6f9f; --bar-dim:#c9d9e6;
+    --font:'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--page);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums;padding:20px 16px 56px;}
+  button,input,select{font-family:var(--font);font-size:15px;color:var(--ink);}
+  .wrap{max-width:1100px;margin:0 auto;}
+  h1{font-size:22px;margin:0;line-height:1.2;}
+  h2{font-size:16px;margin:0 0 10px;}
+  .sub{color:var(--muted);font-size:14px;margin:3px 0 0;}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--rule);margin-bottom:16px;}
+  .btn{min-height:40px;padding:6px 14px;border:1px solid var(--ink);border-radius:4px;background:var(--ink);color:#fff;font-weight:600;cursor:pointer;}
+  .btn.secondary{background:var(--surface);color:var(--ink);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:16px;margin-bottom:16px;}
+  .gate{max-width:380px;margin:12vh auto 0;}
+  .gate label{display:block;font-weight:600;margin:12px 0 6px;}
+  .gate input{width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--rule-strong);border-radius:4px;background:#fff;margin-bottom:10px;}
+  .err{color:var(--bad);font-weight:600;min-height:22px;margin-bottom:6px;}
+  .demo-note{background:#fff7d6;border:1px solid #e3cf7a;border-radius:4px;padding:8px 12px;margin-bottom:16px;font-size:14px;}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+  .tile{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:12px 14px;}
+  .tile .n{font-size:26px;font-weight:700;line-height:1.1;}
+  .tile .l{color:var(--muted);font-size:13px;margin-top:2px;}
+  .chart{width:100%;height:auto;aspect-ratio:1000/150;display:block;}
+  .chart rect.bar{fill:var(--bar);}
+  .chart rect.bar:hover{fill:var(--ink);}
+  .chart text{font-size:11px;fill:var(--muted);}
+  .chart line{stroke:var(--rule);}
+  .tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;padding:5px 9px;border-radius:4px;font-size:13px;display:none;z-index:10;white-space:nowrap;}
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;}
+  .filters input,.filters select{min-height:40px;padding:6px 10px;border:1px solid var(--rule-strong);border-radius:4px;background:#fff;}
+  .filters input{flex:1;min-width:160px;}
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:4px;}
+  table{border-collapse:collapse;width:100%;background:#fff;}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  th{background:#eef0f2;font-size:13px;font-weight:600;cursor:pointer;user-select:none;position:sticky;top:0;}
+  th.num,td.num{text-align:right;}
+  th[aria-sort="ascending"]::after{content:" \25B2";font-size:10px;}
+  th[aria-sort="descending"]::after{content:" \25BC";font-size:10px;}
+  tbody tr{cursor:pointer;}
+  tbody tr:hover{background:#f4f8fb;}
+  tbody tr.sel{background:#e6eff6;}
+  .muted{color:var(--muted);}
+  .acc{display:inline-flex;align-items:center;gap:8px;}
+  .acc .trk{width:54px;height:6px;background:var(--rule);border-radius:3px;overflow:hidden;}
+  .acc .fil{height:100%;background:var(--bar);}
+  .never{color:var(--muted);font-style:italic;}
+  .detail h2{font-size:18px;}
+  .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:12px 0;}
+  .mini{width:100%;font-size:14px;}
+  .mini td,.mini th{padding:4px 6px;border-bottom:1px solid var(--rule);cursor:default;background:none;position:static;font-size:14px;}
+  .mini th{font-weight:600;color:var(--muted);}
+  ul.misses{margin:6px 0 0;padding-left:18px;}
+  ul.misses li{margin-bottom:3px;}
+  .empty{color:var(--muted);padding:14px;}
+  .mgrgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .mgrgrid textarea,.mgr input{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--rule-strong);border-radius:4px;background:#fff;margin-bottom:8px;}
+  .mgrgrid textarea{resize:vertical;}
+  .mgrmsg{margin-top:10px;min-height:22px;font-weight:600;}
+  .mgrmsg.ok{color:#1d6b3a;} .mgrmsg.bad{color:var(--bad);}
+  .mgr{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px;padding:10px;background:#f4f5f6;border-radius:4px;}
+  .mgr input{width:auto;flex:1;min-width:130px;margin:0;}
+  .removed-tag{display:inline-block;margin-left:6px;font-size:12px;border:1px solid var(--bad);color:var(--bad);border-radius:3px;padding:0 6px;font-weight:600;}
+  @media (max-width:760px){.mgrgrid{grid-template-columns:1fr;}}
+  .fbitem{border-top:1px solid var(--rule);padding:10px 0;}
+  .fbitem:first-child{border-top:none;padding-top:0;}
+  .fbmeta{color:var(--muted);font-size:13px;margin-bottom:3px;}
+  .fbmsg{white-space:pre-wrap;word-break:break-word;}
+  .fbtag{display:inline-block;border:1px solid var(--rule-strong);border-radius:3px;padding:0 6px;font-size:12px;margin-left:6px;color:var(--ink);}
+  @media (max-width:760px){
+    .tiles{grid-template-columns:repeat(2,1fr);}
+    .cols{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="gate" class="panel gate">
+    <h1>Dealer Training Dashboard</h1>
+    <p class="sub">Supervisor sign-in</p>
+    <div id="urlRow" style="display:none">
+      <label for="urlInput">Tracker address</label>
+      <input id="urlInput" type="text" placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <label for="keyInput">Supervisor key</label>
+    <input id="keyInput" type="password" autocomplete="off" placeholder="Supervisor key">
+    <div class="err" id="gateErr" role="alert"></div>
+    <button class="btn" id="goBtn" type="button" style="width:100%">Open dashboard</button>
+    <p class="sub" style="margin-top:12px">Want to see how it looks first? <a href="?demo=1" style="color:var(--ink)">Open the demo</a></p>
+  </div>
+
+  <div id="app" style="display:none">
+    <div class="top">
+      <div>
+        <h1>Dealer Training Dashboard</h1>
+        <p class="sub" id="updated"></p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn secondary" id="refreshBtn" type="button">Refresh</button>
+        <button class="btn secondary" id="csvBtn" type="button">Export CSV</button>
+        <button class="btn secondary" id="outBtn" type="button">Sign out</button>
+      </div>
+    </div>
+    <div class="demo-note" id="demoNote" style="display:none">Demo data. These dealers are made up and nothing here is real.</div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel">
+      <h2>Questions answered per day, last 60 days</h2>
+      <svg class="chart" id="dailyChart" role="img" aria-label="Questions answered per day"></svg>
+    </div>
+
+    <div class="panel" id="fbPanel">
+      <h2>Dealer suggestions</h2>
+      <div id="fbList"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Dealers</h2>
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search name or badge">
+        <select id="groupSel" aria-label="Group"></select>
+        <select id="statusSel" aria-label="Activity">
+          <option value="all">All dealers</option>
+          <option value="active7">Practiced in the last 7 days</option>
+          <option value="idle14">Not practiced in 14+ days</option>
+          <option value="never">Never signed in</option>
+          <option value="removed">Removed dealers</option>
+        </select>
+      </div>
+      <div class="tablewrap"><table id="tbl">
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+      <p class="sub" id="count"></p>
+    </div>
+
+    <div class="panel" id="mgrPanel">
+      <h2>Add or remove dealers</h2>
+      <p class="sub" style="margin:0 0 12px">A removed dealer can no longer sign in. Their past results are kept, and you can restore them later.</p>
+      <div class="mgrgrid">
+        <div>
+          <label for="addBox"><b>Add dealers</b></label>
+          <p class="sub" style="margin:2px 0 6px">One per line: badge, name, group. Group is optional. You can paste straight from a spreadsheet.</p>
+          <textarea id="addBox" rows="6" placeholder="2417001, Jordan Lee, Day&#10;2417002, Sam Rivera"></textarea>
+          <button class="btn" id="addBtn" type="button">Add dealers</button>
+        </div>
+        <div>
+          <label for="rmBox"><b>Remove dealers</b></label>
+          <p class="sub" style="margin:2px 0 6px">Paste badge numbers, one per line or separated by commas.</p>
+          <textarea id="rmBox" rows="6" placeholder="2417003&#10;2417004"></textarea>
+          <button class="btn secondary" id="rmBtn" type="button">Remove dealers</button>
+        </div>
+      </div>
+      <div class="mgrmsg" id="mgrMsg" role="status"></div>
+    </div>
+
+    <div class="panel detail" id="detail" style="display:none"></div>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+// Paste the tracker address from the Google script here, or leave it empty and the sign-in screen asks for it.
+const TRACKER_URL = '';
+
+const $ = (id)=>document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const DEMO = params.has('demo');
+const DAY = 86400000;
+let report = null, sortKey = 'lastSeen', sortDir = -1, selected = null, adminKey = '';
+
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} }
+function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null; } }
+function ssSet(k,v){ try{ if(v===null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function pct(c,q){ return q ? Math.round(c/q*100) : null; }
+function modeName(m){ return m==='whole' ? 'Whole Hand' : m==='preflop' ? 'Preflop' : m; }
+function stakeName(s){ return s ? s.replace('-', '/') : s; }
+function streetName(s){ return {pre:'Preflop',flop:'Flop',turn:'Turn',river:'River',side:'Side pot',pot:'Pot (all-in)'}[s] || s; }
+function fmtDate(ms){ return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
+function ago(ms){
+  const d = Math.floor((Date.now()-ms)/DAY);
+  if(d <= 0) return 'Today';
+  if(d === 1) return 'Yesterday';
+  return d + ' days ago';
+}
+
+// ---------- demo data ----------
+function makeDemo(){
+  const now = Date.now(), dealers = [];
+  const first = ['Alex','Blake','Casey','Dana','Eli','Fran','Gray','Hollis','Indy','Jules','Kai','Lane','Morgan','Noel','Oak'];
+  const groups = ['Day','Swing','Grave'];
+  const rnd = (n)=>Math.floor(Math.random()*n);
+  const dayKey = (ms)=>new Date(ms).toISOString().slice(0,10);
+  const dailyTot = {};
+  for(let i=0;i<48;i++){
+    const never = Math.random() < 0.15;
+    const skill = 0.55 + Math.random()*0.4;
+    const daily = []; let q=0,c=0,sessions=0,sd=0,last=null,timeouts=0,sec=0;
+    const byMode={}, byStake={}, byStreet={}, misses=[];
+    for(let k=29;k>=0;k--){
+      const day = dayKey(now-k*DAY);
+      let dq=0, dc=0;
+      if(!never && Math.random() < 0.35){
+        dq = 3 + rnd(18); sessions++; sd++;
+        for(let n=0;n<dq;n++){
+          const ok = Math.random()<skill; if(ok) dc++;
+          const mode = Math.random()<.5?'preflop':'whole', stake=['2-2','5-5','10-10','25-25'][rnd(4)], ph=mode==='preflop'?'pre':['pre','flop','turn','river'][rnd(4)];
+          [[byMode,mode],[byStake,stake],[byStreet,ph]].forEach(([m,key])=>{ m[key]=m[key]||{q:0,c:0}; m[key].q++; if(ok) m[key].c++; });
+          sec += 6+Math.random()*14;
+          if(!ok){ if(Math.random()<.12) timeouts++; if(k<10) misses.push({t:now-k*DAY-rnd(40000000),mode,stake,phase:ph,answer:50+rnd(400),correctAnswer:50+rnd(400),timedOut:false}); }
+        }
+        last = now-k*DAY-rnd(30000000);
+      }
+      daily.push({d:day,q:dq,c:dc}); q+=dq; c+=dc;
+      if(dq){ dailyTot[day]=dailyTot[day]||{q:0,c:0,dealers:0}; dailyTot[day].q+=dq; dailyTot[day].c+=dc; dailyTot[day].dealers++; }
+    }
+    const l7 = daily.slice(-7).reduce((a,x)=>({q:a.q+x.q,c:a.c+x.c}),{q:0,c:0});
+    dealers.push({badge:String(2000000+i*37), name:'Demo Dealer '+String(i+1).padStart(2,'0'), group:groups[i%3], active:true,
+      firstSeen: never?null:now-35*DAY, lastSeen:last, sessions, sessionDays:sd, questions:q, correct:c,
+      avgSeconds:q?Math.round(sec/q*10)/10:null, timeouts, last7:l7, byMode, byStake, byStreet, daily, misses:misses.slice(-12).reverse()});
+  }
+  const daily=[]; for(let j=59;j>=0;j--){ const k=dayKey(now-j*DAY), t=dailyTot[k]; daily.push({d:k,q:t?t.q:0,c:t?t.c:0,dealers:t?t.dealers:0}); }
+  const feedback = [
+    {t:now-1*DAY, badge:'2000037', name:'Demo Dealer 02', category:'Suggestion', message:'Could we get a practice mode with only side pots?', status:'New'},
+    {t:now-3*DAY, badge:'2000111', name:'Demo Dealer 04', category:'Idea for new training', message:'Tournament payout practice would help new dealers.', status:'New'},
+    {t:now-6*DAY, badge:'2000185', name:'Demo Dealer 06', category:'A number looks wrong', message:'The 10/10 buy-in range looked off on my phone.', status:'Done'}
+  ];
+  return {ok:true, generated:now, dealers, daily, feedback};
+}
+
+// ---------- loading ----------
+async function fetchReport(){
+  if(DEMO) return makeDemo();
+  const url = TRACKER_URL || lsGet('plo-tracker-url') || '';
+  const res = await fetch(url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'report', key:adminKey})});
+  return res.json();
+}
+async function load(){
+  $('gateErr').textContent = '';
+  try{
+    const r = await fetchReport();
+    if(!r.ok){ $('gateErr').textContent = r.error === 'wrong key' ? 'That key is not correct.' : 'Could not load the data.'; return false; }
+    report = r; render(); return true;
+  }catch(e){
+    $('gateErr').textContent = 'Could not reach the tracker. Check the address and your connection.';
+    return false;
+  }
+}
+
+// ---------- rendering ----------
+const COLS = [
+  {k:'name', l:'Name'}, {k:'badge', l:'Badge'}, {k:'group', l:'Group'},
+  {k:'lastSeen', l:'Last visit'}, {k:'sessions', l:'Sign-ins', num:1}, {k:'questions', l:'Questions', num:1},
+  {k:'acc', l:'Accuracy', num:1}, {k:'avgSeconds', l:'Avg seconds', num:1}, {k:'timeouts', l:'Timeouts', num:1}
+];
+function val(d,k){ return k==='acc' ? (d.questions ? d.correct/d.questions : -1) : d[k]; }
+
+function renderFeedback(){
+  const list = report.feedback || [];
+  $('fbList').innerHTML = list.length
+    ? list.slice(0,50).map(f=>`<div class="fbitem"><div class="fbmeta">${esc(f.name || 'Badge ' + f.badge)} &middot; Badge ${esc(f.badge)} &middot; ${fmtDate(f.t)}<span class="fbtag">${esc(f.category)}</span>${f.status && f.status !== 'New' ? `<span class="fbtag">${esc(f.status)}</span>` : ''}</div><div class="fbmsg">${esc(f.message)}</div></div>`).join('') + (list.length > 50 ? `<p class="sub">Showing the newest 50 of ${list.length}. The rest are in the Feedback tab of the sheet.</p>` : '')
+    : '<p class="muted">No suggestions yet.</p>';
+}
+
+function render(){
+  renderFeedback();
+  $('gate').style.display = 'none'; $('app').style.display = 'block';
+  $('demoNote').style.display = DEMO ? 'block' : 'none';
+  $('updated').textContent = 'Updated ' + new Date(report.generated).toLocaleString();
+  const ds = report.dealers.filter(d=>d.active);
+  const week = Date.now() - 7*DAY;
+  const act7 = ds.filter(d=>d.lastSeen && d.lastSeen >= week).length;
+  const q7 = ds.reduce((a,d)=>a+d.last7.q,0), c7 = ds.reduce((a,d)=>a+d.last7.c,0);
+  const never = ds.filter(d=>!d.lastSeen).length;
+  $('tiles').innerHTML = [
+    [ds.length, 'Dealers on the roster'],
+    [act7 + ' (' + (ds.length ? Math.round(act7/ds.length*100) : 0) + '%)', 'Practiced in the last 7 days'],
+    [q7.toLocaleString(), 'Questions in the last 7 days'],
+    [q7 ? pct(c7,q7) + '%' : 'None yet', 'Accuracy in the last 7 days']
+  ].map(t=>`<div class="tile"><div class="n">${t[0]}</div><div class="l">${t[1]}</div></div>`).join('');
+  drawBars($('dailyChart'), report.daily.map(x=>({label:x.d, v:x.q, tip:`${fmtDay(x.d)}: ${x.q} questions, ${x.dealers} dealers`})));
+  const groups = [...new Set(ds.map(d=>d.group).filter(Boolean))].sort();
+  $('groupSel').innerHTML = '<option value="">All groups</option>' + groups.map(g=>`<option>${esc(g)}</option>`).join('');
+  drawHead(); drawRows();
+}
+function fmtDay(s){ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString(undefined,{month:'short',day:'numeric'}); }
+
+function drawBars(svg, items){
+  const W = 1000, H = 150, padL = 30, padB = 20, padT = 8;
+  const max = Math.max(5, ...items.map(i=>i.v));
+  const bw = (W - padL) / items.length;
+  let out = '';
+  [0, .5, 1].forEach(f=>{
+    const y = padT + (H - padT - padB) * (1 - f);
+    out += `<line x1="${padL}" x2="${W}" y1="${y}" y2="${y}"/><text x="${padL-4}" y="${y+4}" text-anchor="end">${Math.round(max*f)}</text>`;
+  });
+  items.forEach((it,i)=>{
+    const h = (H - padT - padB) * it.v / max, x = padL + i*bw + 1.5;
+    out += `<rect class="bar" x="${x}" y="${H-padB-h}" width="${Math.max(2,bw-3)}" height="${Math.max(0,h)}" rx="2" data-tip="${esc(it.tip)}"></rect>`;
+    out += `<rect x="${padL+i*bw}" y="${padT}" width="${bw}" height="${H-padT-padB}" fill="transparent" data-tip="${esc(it.tip)}"></rect>`;
+  });
+  const step = Math.ceil(items.length / 6);
+  items.forEach((it,i)=>{ if(i % step === 0) out += `<text x="${padL + i*bw}" y="${H-5}">${esc(fmtDay(it.label))}</text>`; });
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); 
+  svg.innerHTML = out;
+}
+document.addEventListener('mousemove', (e)=>{
+  const t = e.target && e.target.getAttribute && e.target.getAttribute('data-tip');
+  const tip = $('tip');
+  if(t){ tip.textContent = t; tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 12, innerWidth - tip.offsetWidth - 8) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; }
+  else tip.style.display = 'none';
+});
+
+function drawHead(){
+  $('thead').innerHTML = COLS.map(c=>{
+    const s = sortKey === c.k ? (sortDir > 0 ? 'ascending' : 'descending') : 'none';
+    return `<th class="${c.num?'num':''}" data-k="${c.k}" aria-sort="${s}" tabindex="0">${c.l}</th>`;
+  }).join('');
+  document.querySelectorAll('#thead th').forEach(th=>{
+    const go = ()=>{ const k = th.dataset.k; if(sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = (k==='name'||k==='badge'||k==='group') ? 1 : -1; } drawHead(); drawRows(); };
+    th.addEventListener('click', go);
+    th.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } });
+  });
+}
+function filtered(){
+  const q = $('search').value.trim().toLowerCase(), g = $('groupSel').value, st = $('statusSel').value, now = Date.now();
+  return report.dealers.filter(d=>st === 'removed' ? !d.active : d.active).filter(d=>{
+    if(q && !(d.name.toLowerCase().includes(q) || d.badge.includes(q))) return false;
+    if(g && d.group !== g) return false;
+    if(st === 'active7') return d.lastSeen && d.lastSeen >= now - 7*DAY;
+    if(st === 'idle14') return d.lastSeen && d.lastSeen < now - 14*DAY;
+    if(st === 'never') return !d.lastSeen;
+    return true;
+  });
+}
+function sorted(list){
+  return list.slice().sort((a,b)=>{
+    let x = val(a,sortKey), y = val(b,sortKey);
+    if(x === null || x === undefined || x === '') x = (typeof y === 'string') ? '' : -Infinity;
+    if(y === null || y === undefined || y === '') y = (typeof x === 'string') ? '' : -Infinity;
+    if(typeof x === 'string') return sortDir * x.localeCompare(y);
+    return sortDir * (x - y);
+  });
+}
+function drawRows(){
+  const list = sorted(filtered());
+  $('tbody').innerHTML = list.map(d=>{
+    const a = pct(d.correct, d.questions);
+    return `<tr data-b="${esc(d.badge)}" class="${selected===d.badge?'sel':''}" tabindex="0">
+      <td>${esc(d.name)}</td><td class="muted">${esc(d.badge)}</td><td>${esc(d.group)}</td>
+      <td>${d.lastSeen ? `${ago(d.lastSeen)} <span class="muted">${fmtDate(d.lastSeen)}</span>` : '<span class="never">Never</span>'}</td>
+      <td class="num">${d.sessions}</td><td class="num">${d.questions}</td>
+      <td class="num">${a === null ? '<span class="muted">-</span>' : `<span class="acc"><span class="trk"><span class="fil" style="display:block;width:${a}%"></span></span>${a}%</span>`}</td>
+      <td class="num">${d.avgSeconds === null ? '<span class="muted">-</span>' : d.avgSeconds}</td><td class="num">${d.timeouts}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" class="empty">No dealers match.</td></tr>';
+  $('count').textContent = list.length + ' of ' + report.dealers.filter(d=>d.active).length + ' dealers shown. Click a row for details.';
+  document.querySelectorAll('#tbody tr[data-b]').forEach(tr=>{
+    const open = ()=>{ selected = tr.dataset.b; drawRows(); drawDetail(); $('detail').scrollIntoView({behavior:'smooth', block:'start'}); };
+    tr.addEventListener('click', open);
+    tr.addEventListener('keydown', e=>{ if(e.key==='Enter'){ open(); } });
+  });
+}
+function breakdown(title, map, nameFn, order){
+  const keys = (order || Object.keys(map)).filter(k=>map[k]);
+  if(!keys.length) return `<div><h2>${title}</h2><p class="muted">No answers yet.</p></div>`;
+  return `<div><h2>${title}</h2><table class="mini"><tr><th></th><th class="num">Questions</th><th class="num">Accuracy</th></tr>` +
+    keys.map(k=>`<tr><td>${esc(nameFn(k))}</td><td class="num">${map[k].q}</td><td class="num">${pct(map[k].c,map[k].q)}%</td></tr>`).join('') + '</table></div>';
+}
+function drawDetail(){
+  const d = report.dealers.find(x=>x.badge === selected);
+  if(!d){ $('detail').style.display = 'none'; return; }
+  const a = pct(d.correct, d.questions);
+  $('detail').style.display = 'block';
+  $('detail').innerHTML = `<h2>${esc(d.name || 'No name')} <span class="muted" style="font-weight:400">Badge ${esc(d.badge)}${d.group ? ' &middot; ' + esc(d.group) : ''}</span>${d.active ? '' : '<span class="removed-tag">Removed</span>'}</h2>
+    <div class="mgr">
+      <input id="edName" type="text" value="${esc(d.name)}" placeholder="Name" aria-label="Name">
+      <input id="edGroup" type="text" value="${esc(d.group)}" placeholder="Group" aria-label="Group">
+      <button class="btn secondary" id="edSave" type="button">Save name and group</button>
+      ${d.active ? '<button class="btn secondary" id="edRemove" type="button">Remove from site</button>' : '<button class="btn" id="edRestore" type="button">Restore</button>'}
+    </div>
+    <p class="sub">${d.lastSeen ? `First visit ${fmtDate(d.firstSeen)}. Last visit ${fmtDate(d.lastSeen)}. ` : 'Has not signed in yet. '}${d.sessions} sign-ins on ${d.sessionDays} different days. ${d.questions} questions answered${a === null ? '' : ', ' + a + '% correct'}${d.avgSeconds === null ? '' : ', ' + d.avgSeconds + ' seconds on average'}${d.timeouts ? ', ' + d.timeouts + ' timeouts' : ''}.</p>
+    <h2 style="margin-top:14px">Questions per day, last 30 days</h2>
+    <svg class="chart" id="dealerChart" role="img" aria-label="Questions per day for this dealer"></svg>
+    <div class="cols">
+      ${breakdown('By mode', d.byMode, modeName, ['preflop','whole'])}
+      ${breakdown('By stake', d.byStake, stakeName, ['2-2','5-5','10-10','25-25'])}
+      ${breakdown('By street', d.byStreet, streetName, ['pre','flop','turn','river','side','pot'])}
+    </div>
+    <h2>Recent misses</h2>
+    ${d.misses.length ? '<ul class="misses">' + d.misses.map(m=>`<li>${fmtDate(m.t)}: ${esc(modeName(m.mode))}, ${esc(stakeName(m.stake))}, ${esc(streetName(m.phase))}. ${m.timedOut ? 'Time ran out' : 'Answered $' + esc(m.answer)}, correct was $${esc(m.correctAnswer)}.</li>`).join('') + '</ul>' : '<p class="muted">No missed questions on record.</p>'}`;
+  $('edSave').addEventListener('click', ()=>rosterRun([{op:'edit', badge:d.badge, name:$('edName').value, group:$('edGroup').value}], 'Saved.'));
+  if($('edRemove')){
+    let armed = false;
+    $('edRemove').addEventListener('click', ()=>{
+      if(!armed){ armed = true; $('edRemove').textContent = 'Click again to confirm'; setTimeout(()=>{ if($('edRemove')){ armed = false; $('edRemove').textContent = 'Remove from site'; } }, 4000); return; }
+      rosterRun([{op:'remove', badge:d.badge}], d.name ? d.name + ' removed.' : 'Removed.');
+    });
+  }
+  if($('edRestore')) $('edRestore').addEventListener('click', ()=>rosterRun([{op:'restore', badge:d.badge}], 'Restored.'));
+  drawBars($('dealerChart'), d.daily.map(x=>({label:x.d, v:x.q, tip:`${fmtDay(x.d)}: ${x.q} questions${x.q ? ', ' + pct(x.c,x.q) + '% correct' : ''}`})));
+}
+
+// ---------- manage dealers ----------
+function mgrMsg(text, ok){ const m = $('mgrMsg'); m.textContent = text; m.className = 'mgrmsg ' + (ok ? 'ok' : 'bad'); }
+function demoRoster(ops){
+  const res = {ok:true, added:0, updated:0, removed:0, restored:0, skipped:[]};
+  ops.forEach(o=>{
+    const badge = String(o.badge||'').trim();
+    if(!/^[A-Za-z0-9-]{3,20}$/.test(badge)){ res.skipped.push((badge||'(blank)') + ': not a valid badge'); return; }
+    let d = report.dealers.find(x=>x.badge === badge);
+    if(o.op === 'add'){
+      if(d){ const was = !d.active; d.active = true; if(o.name) d.name = o.name; if(o.group) d.group = o.group; was ? res.restored++ : res.updated++; }
+      else { report.dealers.push({badge, name:o.name||'', group:o.group||'', active:true, firstSeen:null, lastSeen:null, sessions:0, sessionDays:0, questions:0, correct:0, avgSeconds:null, timeouts:0, last7:{q:0,c:0}, byMode:{}, byStake:{}, byStreet:{}, daily:[], misses:[]}); res.added++; }
+    } else if(!d){ res.skipped.push(badge + ': not on the roster'); }
+    else if(o.op === 'remove'){ d.active = false; res.removed++; }
+    else if(o.op === 'restore'){ d.active = true; res.restored++; }
+    else if(o.op === 'edit'){ d.name = o.name; d.group = o.group; res.updated++; }
+  });
+  return res;
+}
+async function rosterRun(ops, okText){
+  try{
+    let r;
+    if(DEMO) r = demoRoster(ops);
+    else {
+      const res = await fetch(TRACKER_URL || lsGet('plo-tracker-url') || '', {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({action:'roster', key:adminKey, ops})});
+      r = await res.json();
+    }
+    if(!r.ok){ mgrMsg(r.error === 'wrong key' ? 'The supervisor key is no longer valid. Sign in again.' : 'Could not save that. Please try again.', false); return null; }
+    const parts = [];
+    if(r.added) parts.push(r.added + ' added');
+    if(r.updated) parts.push(r.updated + ' updated');
+    if(r.removed) parts.push(r.removed + ' removed');
+    if(r.restored) parts.push(r.restored + ' restored');
+    let text = parts.length ? parts.join(', ') + '.' : 'Nothing changed.';
+    if(okText && ops.length === 1 && !r.skipped.length) text = okText;
+    if(r.skipped.length) text += ' Skipped: ' + r.skipped.slice(0,5).join('; ') + (r.skipped.length > 5 ? '; and ' + (r.skipped.length-5) + ' more' : '') + '.';
+    mgrMsg(text, !r.skipped.length || parts.length > 0);
+    if(!DEMO){ const fresh = await fetchReport(); if(fresh.ok) report = fresh; }
+    render(); drawDetail();
+    return r;
+  }catch(e){
+    mgrMsg('Could not reach the tracker. Please try again.', false);
+    return null;
+  }
+}
+$('addBtn').addEventListener('click', async ()=>{
+  const lines = $('addBox').value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){ mgrMsg('Type at least one badge number.', false); return; }
+  const ops = lines.map(l=>{ const p = l.split(/\t|,/).map(x=>x.trim()); return {op:'add', badge:p[0], name:p[1] || '', group:p[2] || ''}; });
+  $('addBtn').disabled = true;
+  const r = await rosterRun(ops);
+  $('addBtn').disabled = false;
+  if(r && !r.skipped.length) $('addBox').value = '';
+});
+$('rmBtn').addEventListener('click', async ()=>{
+  const badges = $('rmBox').value.split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean);
+  if(!badges.length){ mgrMsg('Type at least one badge number.', false); return; }
+  $('rmBtn').disabled = true;
+  const r = await rosterRun(badges.map(b=>({op:'remove', badge:b})));
+  $('rmBtn').disabled = false;
+  if(r && !r.skipped.length) $('rmBox').value = '';
+});
+
+// ---------- csv ----------
+function csv(){
+  const rows = [['Name','Badge','Group','Last visit','Sign-ins','Days signed in','Questions','Correct','Accuracy %','Avg seconds','Timeouts','Questions last 7 days']];
+  sorted(filtered()).forEach(d=>rows.push([d.name,d.badge,d.group,d.lastSeen ? new Date(d.lastSeen).toISOString().slice(0,10) : '',d.sessions,d.sessionDays,d.questions,d.correct,pct(d.correct,d.questions) ?? '',d.avgSeconds ?? '',d.timeouts,d.last7.q]));
+  const text = rows.map(r=>r.map(c=>'"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'text/csv'}));
+  a.download = 'dealer-training.csv'; a.click();
+}
+
+// ---------- wiring ----------
+$('search').addEventListener('input', drawRows);
+$('groupSel').addEventListener('change', drawRows);
+$('statusSel').addEventListener('change', drawRows);
+$('csvBtn').addEventListener('click', csv);
+$('refreshBtn').addEventListener('click', async ()=>{ $('refreshBtn').disabled = true; try{ const r = await fetchReport(); if(r.ok){ report = r; render(); drawDetail(); } }catch(e){} $('refreshBtn').disabled = false; });
+$('outBtn').addEventListener('click', ()=>{ ssSet('plo-admin-key', null); location.href = location.pathname; });
+async function signIn(){
+  adminKey = $('keyInput').value.trim();
+  if(!TRACKER_URL && !DEMO){ const u = $('urlInput').value.trim(); if(u) lsSet('plo-tracker-url', u); }
+  if(!DEMO && !(TRACKER_URL || lsGet('plo-tracker-url'))){ $('gateErr').textContent = 'Enter the tracker address.'; return; }
+  if(!DEMO && !adminKey){ $('gateErr').textContent = 'Enter the supervisor key.'; return; }
+  $('goBtn').disabled = true; $('gateErr').textContent = 'Loading...';
+  const ok = await load();
+  $('goBtn').disabled = false;
+  if(ok) ssSet('plo-admin-key', adminKey);
+}
+$('goBtn').addEventListener('click', signIn);
+$('keyInput').addEventListener('keydown', e=>{ if(e.key==='Enter') signIn(); });
+if(!TRACKER_URL){ $('urlRow').style.display = 'block'; $('urlInput').value = lsGet('plo-tracker-url') || ''; }
+if(DEMO){ load(); }
+else { const k = ssGet('plo-admin-key'); if(k && (TRACKER_URL || lsGet('plo-tracker-url'))){ adminKey = k; load(); } }
+</script>
+</body>
+</html>
