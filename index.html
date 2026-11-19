@@ -1063,7 +1063,7 @@ function dealPreflop(stake, opts, fixedStack, needFlop){
 
 function generateScenario(stake, opts){
   const r = dealPreflop(stake, opts);
-  if((r.allInSeats||[]).length && r.layers && r.layers.length){
+  if(opts.allIn && (r.allInSeats||[]).length && r.layers && r.layers.length){
     r.log.push({quiz:true, potQuiz:true, phase:'pot', streetLabel:'flop', layers:r.layers, correctPutIn:r.pot, newMoneyThisAction:0});
   }
   return {
@@ -1255,7 +1255,7 @@ function generateWholeHandScenario(stake, opts){
       const seat = mod8(pre.buttonIdx+k);
       if(liveSeats.includes(seat) && !(pre.allInSeats||[]).includes(seat)) order.push(seat);
     }
-    if((pre.allInSeats||[]).length && pre.layers && pre.layers.length && (name === 'FLOP' || pot !== lastAskedPot)){
+    if(opts.allIn && (pre.allInSeats||[]).length && pre.layers && pre.layers.length && (name === 'FLOP' || pot !== lastAskedPot)){
       lastAskedPot = pot;
       // action is complete: ask for the pot before the next street shows it
       const lay = pre.layers.map(l=>({label:l.label, amount:l.amount, cap:l.cap}));
@@ -1267,7 +1267,7 @@ function generateWholeHandScenario(stake, opts){
       }
       combinedLog.push({quiz:true, potQuiz:true, phase:'pot', streetLabel:name.toLowerCase(), layers:lay, correctPutIn:pot, newMoneyThisAction:0});
     }
-    combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name});
+    combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name, hidePot:!!(opts.allIn && (pre.allInSeats||[]).length && pre.layers && pre.layers.length)});
     if(order.length < 2) continue; // the rest are all in: the board runs out with no more betting
     const wantPot = Math.random() < ({FLOP:0.92, TURN:0.85, RIVER:0.75}[name]);
     let res = simulateStreet(stake, order, pot, pre.roleOf, wantPot, stackUsed, effStack, name.toLowerCase());
@@ -1346,11 +1346,11 @@ function showPotLayers(layers, total){
   el.classList.add('pop');
 }
 
-function showCenterPot(amount, label){
+function showCenterPot(amount, label, hidden){
   const el = document.getElementById('centerPot');
   el.style.display = 'flex';
   const color = document.documentElement.style.getPropertyValue('--brass') || '#ffcc33';
-  el.innerHTML = `<div class="coins"><div class="c" style="bottom:0px;"></div><div class="c" style="bottom:7px;"></div><div class="c" style="bottom:14px;"></div></div><div class="amt">$${amount}</div><div class="caption">${label || 'Flop'}</div>`;
+  el.innerHTML = `<div class="coins"><div class="c" style="bottom:0px;"></div><div class="c" style="bottom:7px;"></div><div class="c" style="bottom:14px;"></div></div><div class="amt">${hidden ? '?' : '$' + amount}</div><div class="caption">${label || 'Flop'}</div>`;
   el.classList.remove('pop');
   void el.offsetWidth;
   el.classList.add('pop');
@@ -1481,7 +1481,7 @@ function applyStreetTransition(sc, entry){
     setTimeout(()=>{ old.forEach(d=>d.remove()); }, 500);
     Sound.sweep();
   }
-  showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase());
+  showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase(), entry.hidePot);
   document.getElementById('questionText').innerHTML = `<b style="font-size:20px;">${entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase()}</b>`;
 }
 
