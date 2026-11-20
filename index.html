@@ -463,6 +463,42 @@
     .street-btn{font-size:14px;}
     .scoreboard .streak{font-size:15px;}
   }
+
+  /* Quiz mode */
+  .quizbar,.quiz-screen{display:none;}
+  body.quiz-mode.quiz-run .quizbar{display:block;}
+  .quizbar{background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:10px 14px;margin-bottom:12px;}
+  .quizbar-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:600;}
+  .quizbar-top span:last-child{color:var(--muted);font-weight:500;font-size:14px;}
+  .quizbar-track{height:6px;background:#e4e6e8;border-radius:3px;margin-top:8px;overflow:hidden;}
+  .quizbar-fill{height:100%;width:0;background:#a52621;transition:width .3s ease;}
+  body.quiz-mode .street-row, body.quiz-mode .stakes-row, body.quiz-mode .settings-row,
+  body.quiz-mode .scoreboard .streak, body.quiz-mode .scoreboard .tally, body.quiz-mode #timerToggle,
+  body.quiz-mode #nextBtn, body.quiz-mode .bottom-actions{display:none;}
+  body.quiz-intro .table-panel, body.quiz-intro .answer-panel, body.quiz-done .table-panel, body.quiz-done .answer-panel{display:none;}
+  body.quiz-intro #quizIntro, body.quiz-done #quizResults{display:block;}
+  .quiz-screen{background:var(--surface);border:1px solid var(--rule);border-top:4px solid #a52621;border-radius:6px;padding:22px 20px;}
+  .quiz-screen h2{font-size:22px;margin:0 0 8px;}
+  .quiz-screen p{margin:0 0 10px;color:var(--muted);font-size:15px;line-height:1.45;}
+  .quiz-screen ul{margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;}
+  .qr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0 18px;}
+  .qr-stat{border:1px solid var(--rule);border-top:3px solid #a52621;border-radius:4px;padding:10px 12px;background:#fff;}
+  .qr-stat b{display:block;font-size:24px;line-height:1.1;}
+  .qr-stat span{font-size:13px;color:var(--muted);}
+  .qr-h{font-size:16px;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule);}
+  .qr-wrap{overflow-x:auto;}
+  .qr-table{width:100%;border-collapse:collapse;font-size:14px;}
+  @media (max-width:520px){.qr-table{font-size:13px;}.qr-table th,.qr-table td{padding:6px 5px !important;}}
+  .qr-table th,.qr-table td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--rule);white-space:nowrap;}
+  .qr-table th{background:#efe9e8;font-weight:600;font-size:13px;}
+  .qr-table td.num,.qr-table th.num{text-align:right;}
+  .qr-miss{border:1px solid var(--rule);border-left:4px solid var(--bad);border-radius:4px;padding:10px 12px;margin-bottom:8px;background:#fff;}
+  .qr-miss .t{font-weight:600;font-size:14px;}
+  .qr-miss .m{font-size:14px;color:var(--muted);margin-top:2px;}
+  .qr-miss .x{font-size:14px;margin-top:4px;}
+  .qr-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+  .qr-good{color:var(--good,#1d6b3a);font-weight:600;}
+  .qr-bad{color:var(--bad);font-weight:600;}
   /* Badge sign-in */
   body.locked .wrap, body.locked .hub{display:none;}
   .gate{display:none;min-height:80vh;align-items:center;justify-content:center;}
@@ -542,9 +578,15 @@
     <div class="hub-grid">
       <button class="module" id="openPlo" type="button">
         <span class="module-tag">Pot calculation</span>
-        <span class="module-title">Pot Limit Omaha</span>
+        <span class="module-title">Pot Limit Omaha Training</span>
         <span class="module-text">Practice your pot calculation for the games we offer in our poker room.</span>
         <span class="module-go">Start training <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <button class="module" id="openQuiz" type="button">
+        <span class="module-tag">Graded quiz</span>
+        <span class="module-title">Pot Limit Omaha Quiz</span>
+        <span class="module-text">Ten whole hands at random stakes. Your accuracy and speed are graded at the end.</span>
+        <span class="module-go">Start the quiz <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </button>
     </div>
     <p class="hub-note">More training to come.</p>
@@ -583,6 +625,24 @@
       </div>
     </div>
   </div>
+
+  <div class="quizbar" id="quizBar">
+    <div class="quizbar-top"><span id="quizBarHand">Hand 1 of 10</span><span id="quizBarStake"></span></div>
+    <div class="quizbar-track"><div class="quizbar-fill" id="quizBarFill"></div></div>
+  </div>
+
+  <div class="quiz-screen" id="quizIntro">
+    <h2>Pot Limit Omaha Quiz</h2>
+    <p>You will be quizzed on 10 whole hands. Each hand is at a random stake and may include a straddle, a double straddle or all-ins.</p>
+    <ul>
+      <li>Each question has a 40 second timer. If time runs out, the answer counts as wrong.</li>
+      <li>You are asked the pot size bet and the pot as the hand plays out.</li>
+      <li>You will not see the answers until the end.</li>
+      <li>At the end you get your accuracy, your speed and a list of what you missed.</li>
+    </ul>
+    <div class="qr-actions"><button class="btn" id="quizBegin" type="button">Start the quiz</button><button class="btn secondary" id="quizCancel" type="button">Back to Training Hub</button></div>
+  </div>
+  <div class="quiz-screen" id="quizResults"></div>
 
   <div class="street-row" id="streetRow">
     <button class="street-btn selected" data-street="preflop">Preflop</button>
@@ -1592,13 +1652,18 @@ function handComplete(sc){
   document.getElementById('questionText').innerHTML = `<b>Hand complete.</b>${endNote}`;
   document.getElementById('answerInput').disabled = true;
   document.getElementById('submitBtn').disabled = true;
+  if(QZ && !QZ.done){
+    clearTimeout(QZ.adv);
+    QZ.adv = setTimeout(nextQuizHand, 900);
+  }
 }
 
 document.getElementById('questionText').addEventListener('click', (e)=>{
   if(e.target && e.target.id === 'skipBtn' && currentSkip) currentSkip();
 });
 
-function dealHand(){
+function dealHand(prebuilt){
+  if(QZ && !(prebuilt && prebuilt.log)) return;
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   currentSkip = null;
@@ -1606,7 +1671,9 @@ function dealHand(){
   pendingResumeSeatDiv = null;
   pendingResumeIdx = null;
   document.getElementById('proceedBtn').style.display = 'none';
-  if(currentStreet === 'whole'){
+  if(QZ && prebuilt && prebuilt.log){
+    scenario = prebuilt;
+  } else if(currentStreet === 'whole'){
     const straddleOn = document.getElementById('straddleToggle').checked;
     const dblStraddleOn = document.getElementById('doubleStraddleToggle').checked;
     scenario = generateWholeHandScenario(currentStake, {straddle:straddleOn, doubleStraddle:dblStraddleOn, allIn:document.getElementById('allInToggle').checked});
@@ -1643,8 +1710,10 @@ function dealHand(){
 }
 
 const TIME_LIMIT = 20000;
+const QUIZ_TIME_LIMIT = 40000;
+function timeLimit(){ return QZ ? QUIZ_TIME_LIMIT : TIME_LIMIT; }
 let timerHandle = null;
-function timerOn(){ return document.getElementById('timerToggle').getAttribute('aria-pressed') === 'true'; }
+function timerOn(){ return !!QZ || document.getElementById('timerToggle').getAttribute('aria-pressed') === 'true'; }
 function stopTimer(){
   if(timerHandle){ clearInterval(timerHandle); timerHandle = null; }
   const t = document.getElementById('timer');
@@ -1659,8 +1728,9 @@ function startTimer(){
   const t0 = performance.now();
   t.hidden = false;
   const tick = ()=>{
-    const left = Math.max(0, TIME_LIMIT - (performance.now() - t0));
-    fill.style.width = (left / TIME_LIMIT * 100) + '%';
+    const lim = timeLimit();
+    const left = Math.max(0, lim - (performance.now() - t0));
+    fill.style.width = (left / lim * 100) + '%';
     num.textContent = Math.ceil(left/1000);
     t.classList.toggle('low', left <= 5000);
     if(left <= 0){ stopTimer(); submitAnswer(true); }
@@ -1688,17 +1758,17 @@ function submitAnswer(timedOut){
     correct++; streak++;
     fb.textContent = `Correct. The count is $${q.correctPutIn}.`;
     fb.className = 'feedback good';
-    Sound.good();
+    if(!QZ) Sound.good();
   } else {
     streak = 0;
     fb.textContent = timedOut === true
       ? `Time's up. The count is $${q.correctPutIn}. Here is the math.`
       : `Not quite. The count is $${q.correctPutIn}. Here is the math.`;
     fb.className = 'feedback bad';
-    if(timedOut === true) Sound.buzz(); else Sound.bad();
+    if(timedOut === true) Sound.buzz(); else if(!QZ) Sound.bad();
   }
   track('answer', {
-    mode: currentStreet, stake: currentStake.key, phase: q.phase || 'pre',
+    mode: QZ ? 'quiz' : currentStreet, stake: currentStake.key, phase: q.phase || 'pre',
     correct: (timedOut !== true && val === q.correctPutIn),
     answer: (timedOut === true || isNaN(val)) ? null : val,
     correctAnswer: q.correctPutIn,
@@ -1708,6 +1778,7 @@ function submitAnswer(timedOut){
     straddle: !!(scenario && scenario.willStraddle),
     doubleStraddle: !!(scenario && scenario.willDblStraddle)
   });
+  if(QZ){ quizRecord(q, val, timedOut === true); return; }
   if(q.potQuiz){
     document.getElementById('potLayers').innerHTML = q.lines.map(l=>`<div class="line"><span>${l.label}</span><b>$${l.amount}</b></div>`).join('');
     document.getElementById('potNote').textContent = q.layers
@@ -1823,6 +1894,185 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
   });
 });
 
+
+// ---- Quiz ----
+const QUIZ_HANDS = 10;
+let QZ = null;
+
+function randomQuizHand(){
+  let last = null;
+  for(let tries = 0; tries < 60; tries++){
+    const stake = pick(STAKES);
+    const straddle = Math.random() < 0.2;
+    const dbl = straddle && Math.random() < 0.25;
+    const allIn = Math.random() < 0.4;
+    const sc = generateWholeHandScenario(stake, {straddle:straddle, doubleStraddle:dbl, allIn:allIn});
+    const nq = sc.log.filter(e=>e.quiz).length;
+    last = {sc, stake, straddle:!!sc.willStraddle, dbl:!!sc.willDblStraddle, allIn: sc.log.some(e=>e.allIn)};
+    if(nq >= 2 && nq <= 5) return last;
+  }
+  return last;
+}
+
+function setQuizClasses(state){
+  const c = document.body.classList;
+  c.remove('quiz-intro','quiz-run','quiz-done');
+  if(state){ c.add('quiz-mode', 'quiz-' + state); } else { c.remove('quiz-mode'); }
+}
+
+function startQuiz(){
+  stopTimer();
+  if(dealTimer) clearTimeout(dealTimer);
+  started = false;
+  QZ = {hand:0, results:[], hands:[], startedAt:null, done:false, adv:null};
+  document.body.classList.remove('view-hub');
+  setQuizClasses('intro');
+  document.querySelector('.nameplate .brand h1').textContent = 'Pot Limit Omaha Quiz';
+  document.querySelector('.nameplate .brand p:not(.signed)').textContent = 'Graded on accuracy and speed.';
+  window.scrollTo(0, 0);
+  track('open', {module:'quiz'});
+}
+
+function leaveQuiz(){
+  if(QZ){ clearTimeout(QZ.adv); }
+  QZ = null;
+  setQuizClasses(null);
+  const h = document.querySelector('.nameplate .brand h1'); if(h) h.textContent = 'PLO Pot Trainer';
+  const p = document.querySelector('.nameplate .brand p:not(.signed)'); if(p) p.textContent = 'Practice announcing the count.';
+}
+
+function beginQuiz(){
+  if(!QZ) return;
+  setQuizClasses('run');
+  QZ.startedAt = Date.now();
+  nextQuizHand();
+}
+
+function nextQuizHand(){
+  if(!QZ || QZ.done) return;
+  if(QZ.hand >= QUIZ_HANDS){ finishQuiz(); return; }
+  const h = randomQuizHand();
+  QZ.hand++;
+  QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
+  QZ.hands.push(QZ.cur);
+  currentStake = h.stake;
+  document.getElementById('quizBarHand').textContent = `Hand ${QZ.hand} of ${QUIZ_HANDS}`;
+  document.getElementById('quizBarStake').textContent = `${h.stake.label} PLO`;
+  document.getElementById('quizBarFill').style.width = ((QZ.hand - 1) / QUIZ_HANDS * 100) + '%';
+  window.scrollTo(0, 0);
+  dealHand(h.sc);
+}
+
+function explainQuestion(q){
+  if(q.potQuiz){
+    const parts = q.lines.map(l=>`${l.label} $${l.amount}`).join(' + ');
+    return `${parts} = $${q.correctPutIn}`;
+  }
+  if(q.callHero === 0){
+    return q.alreadyIn > 0
+      ? `No one bet more than you have in. Pot $${q.potBeforeHero} + your $${q.alreadyIn} already in = $${q.correctPutIn}`
+      : `No call needed. The count is the pot, $${q.correctPutIn}`;
+  }
+  const sa = q.shortAllInAmts || [];
+  let t = `3 × $${q.lastBet} (last bet) + $${q.trails} (everything else in) = $${q.correctPutIn}`;
+  if(sa.length) t += `. The ${sa.map(v=>'$'+v).join(' and ')} all-in ${sa.length === 1 ? 'is' : 'are'} for less, so not the last bet.`;
+  return t;
+}
+
+function quizRecord(q, val, timedOut){
+  const right = !timedOut && val === q.correctPutIn;
+  const secs = Math.min(QUIZ_TIME_LIMIT / 1000, Math.round((performance.now() - quizShownAt) / 100) / 10);
+  const streetWord = {pre:'preflop', flop:'flop', turn:'turn', river:'river'}[q.phase] || '';
+  QZ.results.push({
+    hand: QZ.cur.n, stakeKey: QZ.cur.stakeKey, stake: QZ.cur.stake,
+    straddle: QZ.cur.straddle, dbl: QZ.cur.dbl, allIn: QZ.cur.allIn,
+    kind: q.potQuiz ? 'pot' : 'bet',
+    label: q.potQuiz ? q.askText : `Pot size bet, ${streetWord}`,
+    correct: right, answer: (timedOut || isNaN(val)) ? null : val, correctAnswer: q.correctPutIn,
+    seconds: secs, timedOut: timedOut, explain: explainQuestion(q)
+  });
+  if(!q.potQuiz) revealQuizChip(scenario, q);
+  const fb = document.getElementById('feedback');
+  fb.textContent = ''; fb.className = 'feedback';
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').disabled = true;
+  pendingResumeSeatDiv = q.potQuiz ? document.body : seatDivBySeat[q.seat];
+  pendingResumeIdx = q._resumeIdx;
+  clearTimeout(QZ.adv);
+  QZ.adv = setTimeout(proceedToNextAction, 350);
+}
+
+function qEsc(t){ return String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function qSec(n){ return (Math.round(n * 10) / 10).toFixed(1) + ' s'; }
+function qTime(ms){ const t = Math.round(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+function qGroup(rows){
+  const q = rows.length, c = rows.filter(r=>r.correct).length;
+  const sec = rows.reduce((a,r)=>a + r.seconds, 0);
+  return {q, c, pct: q ? Math.round(c / q * 100) : null, avg: q ? sec / q : null};
+}
+
+function finishQuiz(){
+  if(!QZ) return;
+  QZ.done = true;
+  stopTimer();
+  clearTimeout(QZ.adv);
+  const R = QZ.results;
+  const all = qGroup(R);
+  const wrong = all.q - all.c;
+  const timeouts = R.filter(r=>r.timedOut).length;
+  const elapsed = Date.now() - QZ.startedAt;
+  const answerSecs = R.reduce((a,r)=>a + r.seconds, 0);
+  const row = (label, g)=> g.q ? `<tr><td>${label}</td><td class="num">${g.q}</td><td class="num">${g.c}</td><td class="num">${g.pct}%</td><td class="num">${qSec(g.avg)}</td></tr>` : '';
+  const head = (first)=>`<thead><tr><th>${first}</th><th class="num">Qs</th><th class="num">Right</th><th class="num">Acc.</th><th class="num">Avg time</th></tr></thead>`;
+
+  const byStake = STAKES.map(st=>row(st.label + ' PLO', qGroup(R.filter(r=>r.stakeKey === st.key)))).join('');
+  const byType = row('Pot size bet', qGroup(R.filter(r=>r.kind === 'bet'))) + row('Pot count', qGroup(R.filter(r=>r.kind === 'pot')));
+  const bySituation = [
+    ['Straddle hands', r=>r.straddle && !r.dbl],
+    ['Double straddle hands', r=>r.dbl],
+    ['All-in hands', r=>r.allIn],
+    ['Regular hands', r=>!r.straddle && !r.dbl && !r.allIn]
+  ].map(([lbl, f])=>row(lbl, qGroup(R.filter(f)))).join('');
+
+  const handRows = QZ.hands.map(h=>{
+    const rs = R.filter(r=>r.hand === h.n);
+    const g = qGroup(rs);
+    const feat = [h.dbl ? 'Double straddle' : (h.straddle ? 'Straddle' : ''), h.allIn ? 'All-in' : ''].filter(Boolean).join(', ') || 'None';
+    return `<tr><td>${h.n}</td><td>${h.stake}</td><td>${feat}</td><td class="num ${g.c === g.q ? 'qr-good' : ''}">${g.c} / ${g.q}</td><td class="num">${qSec(g.q ? rs.reduce((a,r)=>a+r.seconds,0) : 0)}</td></tr>`;
+  }).join('');
+
+  const misses = R.filter(r=>!r.correct).map(r=>{
+    const mine = r.timedOut ? 'Time ran out' : '$' + r.answer;
+    return `<div class="qr-miss"><div class="t">Hand ${r.hand}, ${r.stake} PLO: ${qEsc(r.label)}</div>
+      <div class="m">Your answer: <span class="qr-bad">${mine}</span> &middot; Correct: <b>$${r.correctAnswer}</b> &middot; ${qSec(r.seconds)}</div>
+      <div class="x">${qEsc(r.explain)}</div></div>`;
+  }).join('');
+
+  const pct = all.pct;
+  document.getElementById('quizResults').innerHTML = `
+    <h2>Quiz complete</h2>
+    <p>${qEsc(currentName || ('Badge ' + currentBadge))}. Here is how you did.</p>
+    <div class="qr-stats">
+      <div class="qr-stat"><b>${pct}%</b><span>Accuracy (${all.c} of ${all.q} correct)</span></div>
+      <div class="qr-stat"><b>${wrong}</b><span>Wrong${timeouts ? ' (' + timeouts + ' timed out)' : ''}</span></div>
+      <div class="qr-stat"><b>${qSec(all.avg)}</b><span>Average time per answer</span></div>
+      <div class="qr-stat"><b>${qTime(elapsed)}</b><span>Total time (${answerSecs.toFixed(0)} s answering)</span></div>
+    </div>
+    <h3 class="qr-h">By stake</h3><div class="qr-wrap"><table class="qr-table">${head('Stake')}<tbody>${byStake}</tbody></table></div>
+    <h3 class="qr-h">By question type</h3><div class="qr-wrap"><table class="qr-table">${head('Type')}<tbody>${byType}</tbody></table></div>
+    <h3 class="qr-h">By situation</h3><div class="qr-wrap"><table class="qr-table">${head('Situation')}<tbody>${bySituation}</tbody></table></div>
+    <h3 class="qr-h">Hand by hand</h3><div class="qr-wrap"><table class="qr-table"><thead><tr><th>Hand</th><th>Stake</th><th>Extras</th><th class="num">Correct</th><th class="num">Time</th></tr></thead><tbody>${handRows}</tbody></table></div>
+    <h3 class="qr-h">What you missed</h3>
+    ${wrong ? misses : '<p class="qr-good">Nothing. Every answer was correct.</p>'}
+    <div class="qr-actions"><button class="btn" id="quizAgain" type="button">Take another quiz</button><button class="btn secondary" id="quizHome" type="button">Back to Training Hub</button></div>`;
+  document.getElementById('quizAgain').addEventListener('click', startQuiz);
+  document.getElementById('quizHome').addEventListener('click', showHub);
+  document.getElementById('quizBarFill').style.width = '100%';
+  setQuizClasses('done');
+  window.scrollTo(0, 0);
+  track('quiz', {mode:'quiz', answer: `${all.c} of ${all.q}`, correctAnswer: pct, seconds: Math.round(elapsed / 100) / 10});
+}
+
 // ---- Tracker (Google Sheet) ----
 // Paste the web app address from the Google script here (see the setup guide).
 // While this is empty the site works offline and checks badges against LOCAL_BADGES below.
@@ -1884,18 +2134,22 @@ function enterSite(badge, name){
 function showHub(){
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
+  leaveQuiz();
   started = false;
   document.body.classList.add('view-hub');
   window.scrollTo(0, 0);
 }
 function openModule(name){
+  if(name === 'quiz'){ startQuiz(); return; }
   if(name !== 'plo') return;
+  leaveQuiz();
   document.body.classList.remove('view-hub');
   window.scrollTo(0, 0);
   if(!started){ started = true; dealHand(); }
   track('open', {module: name});
 }
 function lockSite(){
+  leaveQuiz();
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   currentBadge = null;
@@ -1957,6 +2211,9 @@ document.getElementById('signOutBtn').addEventListener('click', lockSite);
 document.getElementById('hubSignOut').addEventListener('click', lockSite);
 document.getElementById('backHub').addEventListener('click', showHub);
 document.getElementById('openPlo').addEventListener('click', ()=>openModule('plo'));
+document.getElementById('openQuiz').addEventListener('click', ()=>openModule('quiz'));
+document.getElementById('quizBegin').addEventListener('click', beginQuiz);
+document.getElementById('quizCancel').addEventListener('click', showHub);
 document.getElementById('gateLogo').src = document.getElementById('hubLogo').src;
 const savedBadge = lsGet('plo-badge');
 if(savedBadge && (TRACKER_URL || LOCAL_BADGES.includes(savedBadge))) enterSite(savedBadge, lsGet('plo-name') || '');
