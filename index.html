@@ -1063,8 +1063,8 @@ function dealPreflop(stake, opts, fixedStack, needFlop){
 
 function generateScenario(stake, opts){
   const r = dealPreflop(stake, opts);
-  if(opts.allIn && (r.allInSeats||[]).length && r.layers && r.layers.length){
-    r.log.push({quiz:true, potQuiz:true, phase:'pot', streetLabel:'flop', layers:r.layers, correctPutIn:r.pot, newMoneyThisAction:0});
+  if(8 - r.folded.size >= 2){
+    r.log.push(makePotQuiz(r.contributions, r.folded, r.allInSeats, 'What is the pot now that the preflop action is complete?'));
   }
   return {
     stake, buttonIdx:r.buttonIdx, sbIdx:r.sbIdx, bbIdx:r.bbIdx, straddleIdx:r.straddleIdx, dblStraddleIdx:r.dblStraddleIdx,
@@ -1236,6 +1236,29 @@ function computeLayers(contributions, allInSeats){
   return layers;
 }
 
+function makePotQuiz(contrib, folded, allInSeats, askText){
+  const total = contrib.reduce((a,v)=>a+v,0);
+  const layers = computeLayers(contrib, allInSeats);
+  let lines;
+  if(layers.length > 1){
+    lines = layers.map(l=>({label:l.label, amount:l.amount}));
+  } else {
+    const live = [], dead = [];
+    for(let i=0;i<contrib.length;i++){
+      if(contrib[i] <= 0) continue;
+      (folded.has(i) ? dead : live).push(contrib[i]);
+    }
+    lines = [];
+    const liveSum = live.reduce((a,v)=>a+v,0), deadSum = dead.reduce((a,v)=>a+v,0);
+    if(live.length){
+      const same = live.every(v=>v === live[0]);
+      lines.push({label: same && live.length > 1 ? `${live.length} players in for $${live[0]} each` : (live.length === 1 ? '1 player in' : 'Players still in'), amount: liveSum});
+    }
+    if(deadSum > 0) lines.push({label:'Folded money', amount: deadSum});
+  }
+  return {quiz:true, potQuiz:true, phase:'pot', askText, layers: layers.length > 1 ? layers : null, lines, correctPutIn: total, newMoneyThisAction:0};
+}
+
 function generateWholeHandScenario(stake, opts){
   const pre = dealPreflop(stake, opts, ()=>drawEffStack(stake), true);
   const effStack = pre.effStack;
@@ -1255,19 +1278,12 @@ function generateWholeHandScenario(stake, opts){
       const seat = mod8(pre.buttonIdx+k);
       if(liveSeats.includes(seat) && !(pre.allInSeats||[]).includes(seat)) order.push(seat);
     }
-    if(opts.allIn && (pre.allInSeats||[]).length && pre.layers && pre.layers.length && (name === 'FLOP' || pot !== lastAskedPot)){
+    if(pot !== lastAskedPot){
+      // the action on the last street is complete: ask for the pot before the next street shows anything
       lastAskedPot = pot;
-      // action is complete: ask for the pot before the next street shows it
-      const lay = pre.layers.map(l=>({label:l.label, amount:l.amount, cap:l.cap}));
-      const extra = pot - pre.pot;
-      if(extra > 0){
-        if(lay[lay.length-1].cap === null) lay[lay.length-1].amount += extra;
-        else lay.push({label:'Side pot', amount:extra, cap:null});
-        if(lay.length > 2) lay.forEach((l,i)=>{ if(i>0) l.label = 'Side pot ' + i; });
-      }
-      combinedLog.push({quiz:true, potQuiz:true, phase:'pot', streetLabel:name.toLowerCase(), layers:lay, correctPutIn:pot, newMoneyThisAction:0});
+      combinedLog.push(makePotQuiz(stackUsed, cumulativeFolded, pre.allInSeats, `What is the pot on the ${name.toLowerCase()}?`));
     }
-    combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name, hidePot:!!(opts.allIn && (pre.allInSeats||[]).length && pre.layers && pre.layers.length)});
+    combinedLog.push({info:true, street:true, streetName:name, potTotal:pot, text:name, hidePot:true});
     if(order.length < 2) continue; // the rest are all in: the board runs out with no more betting
     const wantPot = Math.random() < ({FLOP:0.92, TURN:0.85, RIVER:0.75}[name]);
     let res = simulateStreet(stake, order, pot, pre.roleOf, wantPot, stackUsed, effStack, name.toLowerCase());
@@ -1284,6 +1300,10 @@ function generateWholeHandScenario(stake, opts){
     liveSeats = liveSeats.filter(s=>!res.folded.has(s));
     pot = res.pot;
     for(let i=0;i<8;i++) stackUsed[i] += res.contributions[i];
+  }
+
+  if(liveSeats.length >= 2 && pot !== lastAskedPot){
+    combinedLog.push(makePotQuiz(stackUsed, cumulativeFolded, pre.allInSeats, 'What is the pot now that the action is complete?'));
   }
 
   return {
@@ -1535,7 +1555,7 @@ function presentQuiz(sc, entry, idx){
   currentQuiz._resumeIdx = idx + 1;
   answered = false;
   if(entry.potQuiz){
-    document.getElementById('questionText').innerHTML = `<b>What is the pot on the ${entry.streetLabel || 'flop'}?</b>`;
+    document.getElementById('questionText').innerHTML = `<b>${entry.askText || 'What is the pot?'}</b>`;
     const cp = document.getElementById('centerPot'); cp.style.display = 'none'; cp.innerHTML = '';
   } else {
     const seatDiv = seatDivBySeat[entry.seat];
@@ -1689,13 +1709,13 @@ function submitAnswer(timedOut){
     doubleStraddle: !!(scenario && scenario.willDblStraddle)
   });
   if(q.potQuiz){
-    document.getElementById('potLayers').innerHTML = q.layers.map(l=>`<div class="line"><span>${l.label}</span><b>$${l.amount}</b></div>`).join('');
-    document.getElementById('potNote').textContent = q.layers.length > 1
+    document.getElementById('potLayers').innerHTML = q.lines.map(l=>`<div class="line"><span>${l.label}</span><b>$${l.amount}</b></div>`).join('');
+    document.getElementById('potNote').textContent = q.layers
       ? 'The pot is the main pot plus the side pot(s). A player who says pot gets all of it.'
-      : 'The pot is everything in the middle.';
+      : 'Count every chip in the middle, including the money from players who folded.';
     document.getElementById('potTotalVal').textContent = `$${q.correctPutIn}`;
     { const lay = document.getElementById('chipLayer'); [...lay.children].forEach(d=>{ d.style.transition='opacity .3s'; d.style.opacity='0'; }); setTimeout(()=>{ lay.innerHTML=''; chipDivBySeat={}; }, 350); }
-    if(q.layers.length > 1) showPotLayers(q.layers, q.correctPutIn); else showCenterPot(q.correctPutIn, 'Pot');
+    if(q.layers) showPotLayers(q.layers, q.correctPutIn); else showCenterPot(q.correctPutIn, 'Pot');
     document.getElementById('sideTicket').classList.add('show');
     document.getElementById('answerInput').disabled = true;
     document.getElementById('submitBtn').disabled = true;
