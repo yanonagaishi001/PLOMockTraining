@@ -212,9 +212,9 @@ function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null
 function ssSet(k,v){ try{ if(v===null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pct(c,q){ return q ? Math.round(c/q*100) : null; }
-function modeName(m){ return m==='whole' ? 'Whole Hand' : m==='preflop' ? 'Preflop' : m; }
+function modeName(m){ return m==='whole' ? 'Whole Hand' : m==='preflop' ? 'Preflop' : m==='quiz' ? 'Quiz' : m; }
 function stakeName(s){ return s ? s.replace('-', '/') : s; }
-function streetName(s){ return {pre:'Preflop',flop:'Flop',turn:'Turn',river:'River',side:'Side pot',pot:'Pot (all-in)'}[s] || s; }
+function streetName(s){ return {pre:'Preflop',flop:'Flop',turn:'Turn',river:'River',side:'Side pot',pot:'Pot count'}[s] || s; }
 function fmtDate(ms){ return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
 function ago(ms){
   const d = Math.floor((Date.now()-ms)/DAY);
@@ -253,10 +253,11 @@ function makeDemo(){
       daily.push({d:day,q:dq,c:dc}); q+=dq; c+=dc;
       if(dq){ dailyTot[day]=dailyTot[day]||{q:0,c:0,dealers:0}; dailyTot[day].q+=dq; dailyTot[day].c+=dc; dailyTot[day].dealers++; }
     }
+    const quizzes = []; if(!never){ const nq = rnd(4); for(let z=0;z<nq;z++){ const tot = 70+rnd(20), ok = Math.round(tot*Math.min(0.98, skill-0.03+Math.random()*0.08)); quizzes.push({t: now - (z*6+rnd(5))*DAY - rnd(40000000), score: ok+'/'+tot, pct: Math.round(ok/tot*100), seconds: 540+rnd(500)}); } }
     const l7 = daily.slice(-7).reduce((a,x)=>({q:a.q+x.q,c:a.c+x.c}),{q:0,c:0});
     dealers.push({badge:String(2000000+i*37), name:'Demo Dealer '+String(i+1).padStart(2,'0'), group:groups[i%3], active:true,
       firstSeen: never?null:now-35*DAY, lastSeen:last, sessions, sessionDays:sd, questions:q, correct:c,
-      avgSeconds:q?Math.round(sec/q*10)/10:null, timeouts, last7:l7, byMode, byStake, byStreet, daily, misses:misses.slice(-12).reverse()});
+      avgSeconds:q?Math.round(sec/q*10)/10:null, timeouts, last7:l7, byMode, byStake, byStreet, daily, misses:misses.slice(-12).reverse(), quizzes});
   }
   const daily=[]; for(let j=59;j>=0;j--){ const k=dayKey(now-j*DAY), t=dailyTot[k]; daily.push({d:k,q:t?t.q:0,c:t?t.c:0,dealers:t?t.dealers:0}); }
   const feedback = [
@@ -290,9 +291,9 @@ async function load(){
 const COLS = [
   {k:'name', l:'Name'}, {k:'badge', l:'Badge'}, {k:'group', l:'Shift'},
   {k:'lastSeen', l:'Last visit'}, {k:'sessions', l:'Sign-ins', num:1}, {k:'questions', l:'Questions', num:1},
-  {k:'acc', l:'Accuracy', num:1}, {k:'avgSeconds', l:'Avg seconds', num:1}, {k:'timeouts', l:'Timeouts', num:1}
+  {k:'acc', l:'Accuracy', num:1}, {k:'avgSeconds', l:'Avg seconds', num:1}, {k:'timeouts', l:'Timeouts', num:1}, {k:'quiz', l:'Last quiz', num:1}
 ];
-function val(d,k){ return k==='acc' ? (d.questions ? d.correct/d.questions : -1) : d[k]; }
+function val(d,k){ return k==='acc' ? (d.questions ? d.correct/d.questions : -1) : k==='quiz' ? ((d.quizzes && d.quizzes.length) ? d.quizzes[0].pct : -1) : d[k]; }
 
 function renderFeedback(){
   const list = report.feedback || [];
@@ -390,8 +391,8 @@ function drawRows(){
       <td>${d.lastSeen ? `${ago(d.lastSeen)} <span class="muted">${fmtDate(d.lastSeen)}</span>` : '<span class="never">Never</span>'}</td>
       <td class="num">${d.sessions}</td><td class="num">${d.questions}</td>
       <td class="num">${a === null ? '<span class="muted">-</span>' : `<span class="acc"><span class="trk"><span class="fil" style="display:block;width:${a}%"></span></span>${a}%</span>`}</td>
-      <td class="num">${d.avgSeconds === null ? '<span class="muted">-</span>' : d.avgSeconds}</td><td class="num">${d.timeouts}</td></tr>`;
-  }).join('') || '<tr><td colspan="9" class="empty">No dealers match.</td></tr>';
+      <td class="num">${d.avgSeconds === null ? '<span class="muted">-</span>' : d.avgSeconds}</td><td class="num">${d.timeouts}</td><td class="num">${(d.quizzes && d.quizzes.length) ? d.quizzes[0].pct + '%' : '<span class="muted">-</span>'}</td></tr>`;
+  }).join('') || '<tr><td colspan="10" class="empty">No dealers match.</td></tr>';
   $('count').textContent = list.length + ' of ' + report.dealers.filter(d=>d.active).length + ' dealers shown. Click a row for details.';
   document.querySelectorAll('#tbody tr[data-b]').forEach(tr=>{
     const open = ()=>{ selected = tr.dataset.b; drawRows(); drawDetail(); $('detail').scrollIntoView({behavior:'smooth', block:'start'}); };
@@ -421,10 +422,12 @@ function drawDetail(){
     <h2 style="margin-top:14px">Questions per day, last 30 days</h2>
     <svg class="chart" id="dealerChart" role="img" aria-label="Questions per day for this dealer"></svg>
     <div class="cols">
-      ${breakdown('By mode', d.byMode, modeName, ['preflop','whole'])}
+      ${breakdown('By mode', d.byMode, modeName, ['preflop','whole','quiz'])}
       ${breakdown('By stake', d.byStake, stakeName, ['2-2','5-5','10-10','25-25'])}
       ${breakdown('By street', d.byStreet, streetName, ['pre','flop','turn','river','side','pot'])}
     </div>
+    <h2>Quizzes taken</h2>
+    ${(d.quizzes && d.quizzes.length) ? '<table class="mini"><tr><th>Date</th><th class="num">Score</th><th class="num">Accuracy</th><th class="num">Total time</th></tr>' + d.quizzes.map(z=>`<tr><td>${fmtDate(z.t)}</td><td class="num">${esc(z.score)}</td><td class="num">${z.pct}%</td><td class="num">${Math.floor(z.seconds/60)}:${String(Math.round(z.seconds%60)).padStart(2,'0')}</td></tr>`).join('') + '</table>' : '<p class="muted">No quizzes taken yet.</p>'}
     <h2>Recent misses</h2>
     ${d.misses.length ? '<ul class="misses">' + d.misses.map(m=>`<li>${fmtDate(m.t)}: ${esc(modeName(m.mode))}, ${esc(stakeName(m.stake))}, ${esc(streetName(m.phase))}. ${m.timedOut ? 'Time ran out' : 'Answered $' + esc(m.answer)}, correct was $${esc(m.correctAnswer)}.</li>`).join('') + '</ul>' : '<p class="muted">No missed questions on record.</p>'}`;
   $('edSave').addEventListener('click', ()=>rosterRun([{op:'edit', badge:d.badge, name:$('edName').value, group:$('edGroup').value}], 'Saved.'));
@@ -449,7 +452,7 @@ function demoRoster(ops){
     let d = report.dealers.find(x=>x.badge === badge);
     if(o.op === 'add'){
       if(d){ const was = !d.active; d.active = true; if(o.name) d.name = o.name; if(o.group) d.group = o.group; was ? res.restored++ : res.updated++; }
-      else { report.dealers.push({badge, name:o.name||'', group:o.group||'', active:true, firstSeen:null, lastSeen:null, sessions:0, sessionDays:0, questions:0, correct:0, avgSeconds:null, timeouts:0, last7:{q:0,c:0}, byMode:{}, byStake:{}, byStreet:{}, daily:[], misses:[]}); res.added++; }
+      else { report.dealers.push({badge, name:o.name||'', group:o.group||'', active:true, firstSeen:null, lastSeen:null, sessions:0, sessionDays:0, questions:0, correct:0, avgSeconds:null, timeouts:0, last7:{q:0,c:0}, byMode:{}, byStake:{}, byStreet:{}, daily:[], misses:[], quizzes:[]}); res.added++; }
     } else if(!d){ res.skipped.push(badge + ': not on the roster'); }
     else if(o.op === 'remove'){ d.active = false; res.removed++; }
     else if(o.op === 'restore'){ d.active = true; res.restored++; }
@@ -503,8 +506,8 @@ $('rmBtn').addEventListener('click', async ()=>{
 
 // ---------- csv ----------
 function csv(){
-  const rows = [['Name','Badge','Shift','Last visit','Sign-ins','Days signed in','Questions','Correct','Accuracy %','Avg seconds','Timeouts','Questions last 7 days']];
-  sorted(filtered()).forEach(d=>rows.push([d.name,d.badge,d.group,d.lastSeen ? new Date(d.lastSeen).toISOString().slice(0,10) : '',d.sessions,d.sessionDays,d.questions,d.correct,pct(d.correct,d.questions) ?? '',d.avgSeconds ?? '',d.timeouts,d.last7.q]));
+  const rows = [['Name','Badge','Shift','Last visit','Sign-ins','Days signed in','Questions','Correct','Accuracy %','Avg seconds','Timeouts','Questions last 7 days','Last quiz %','Quizzes taken']];
+  sorted(filtered()).forEach(d=>rows.push([d.name,d.badge,d.group,d.lastSeen ? new Date(d.lastSeen).toISOString().slice(0,10) : '',d.sessions,d.sessionDays,d.questions,d.correct,pct(d.correct,d.questions) ?? '',d.avgSeconds ?? '',d.timeouts,d.last7.q,(d.quizzes && d.quizzes.length) ? d.quizzes[0].pct : '',(d.quizzes||[]).length]));
   const text = rows.map(r=>r.map(c=>'"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], {type:'text/csv'}));
