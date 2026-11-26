@@ -212,7 +212,7 @@ function ssGet(k){ try{ return sessionStorage.getItem(k); }catch(e){ return null
 function ssSet(k,v){ try{ if(v===null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){} }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pct(c,q){ return q ? Math.round(c/q*100) : null; }
-function modeName(m){ return m==='whole' ? 'Whole Hand' : m==='preflop' ? 'Preflop' : m==='quiz' ? 'Quiz' : m; }
+function modeName(m){ return m==='whole' ? 'Whole Hand' : m==='preflop' ? 'Preflop' : m==='quiz' ? 'Quiz (all stakes)' : m==='quiz22' ? '2/2 Quiz' : m; }
 function stakeName(s){ return s ? s.replace('-', '/') : s; }
 function streetName(s){ return {pre:'Preflop',flop:'Flop',turn:'Turn',river:'River',side:'Side pot',pot:'Pot count'}[s] || s; }
 function fmtDate(ms){ return new Date(ms).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
@@ -253,7 +253,7 @@ function makeDemo(){
       daily.push({d:day,q:dq,c:dc}); q+=dq; c+=dc;
       if(dq){ dailyTot[day]=dailyTot[day]||{q:0,c:0,dealers:0}; dailyTot[day].q+=dq; dailyTot[day].c+=dc; dailyTot[day].dealers++; }
     }
-    const quizzes = []; if(!never){ const nq = rnd(4); for(let z=0;z<nq;z++){ const tot = 70+rnd(20), ok = Math.round(tot*Math.min(0.98, skill-0.03+Math.random()*0.08)); quizzes.push({t: now - (z*6+rnd(5))*DAY - rnd(40000000), score: ok+'/'+tot, pct: Math.round(ok/tot*100), seconds: 540+rnd(500)}); } }
+    const quizzes = []; if(!never){ const nq = rnd(4); for(let z=0;z<nq;z++){ const tot = 36+rnd(10), ok = Math.round(tot*Math.min(0.98, skill-0.03+Math.random()*0.08)); quizzes.push({t: now - (z*6+rnd(5))*DAY - rnd(40000000), score: ok+'/'+tot, pct: Math.round(ok/tot*100), seconds: 420+rnd(400)}); } }
     const l7 = daily.slice(-7).reduce((a,x)=>({q:a.q+x.q,c:a.c+x.c}),{q:0,c:0});
     dealers.push({badge:String(2000000+i*37), name:'Demo Dealer '+String(i+1).padStart(2,'0'), group:groups[i%3], active:true,
       firstSeen: never?null:now-35*DAY, lastSeen:last, sessions, sessionDays:sd, questions:q, correct:c,
@@ -422,12 +422,12 @@ function drawDetail(){
     <h2 style="margin-top:14px">Questions per day, last 30 days</h2>
     <svg class="chart" id="dealerChart" role="img" aria-label="Questions per day for this dealer"></svg>
     <div class="cols">
-      ${breakdown('By mode', d.byMode, modeName, ['preflop','whole','quiz'])}
+      ${breakdown('By mode', d.byMode, modeName, ['preflop','whole','quiz22','quiz'])}
       ${breakdown('By stake', d.byStake, stakeName, ['2-2','5-5','10-10','25-25'])}
       ${breakdown('By street', d.byStreet, streetName, ['pre','flop','turn','river','side','pot'])}
     </div>
     <h2>Quizzes taken</h2>
-    ${(d.quizzes && d.quizzes.length) ? '<table class="mini"><tr><th>Date</th><th class="num">Score</th><th class="num">Accuracy</th><th class="num">Total time</th></tr>' + d.quizzes.map(z=>`<tr><td>${fmtDate(z.t)}</td><td class="num">${esc(z.score)}</td><td class="num">${z.pct}%</td><td class="num">${Math.floor(z.seconds/60)}:${String(Math.round(z.seconds%60)).padStart(2,'0')}</td></tr>`).join('') + '</table>' : '<p class="muted">No quizzes taken yet.</p>'}
+    ${(d.quizzes && d.quizzes.length) ? '<table class="mini"><tr><th>Date</th><th>Quiz</th><th class="num">Score</th><th class="num">Accuracy</th><th class="num">Total time</th></tr>' + d.quizzes.map(z=>`<tr><td>${fmtDate(z.t)}</td><td>${z.mode === 'quiz22' ? '2/2 Quiz' : 'All stakes'}</td><td class="num">${esc(z.score)}</td><td class="num">${z.pct}%</td><td class="num">${Math.floor(z.seconds/60)}:${String(Math.round(z.seconds%60)).padStart(2,'0')}</td></tr>`).join('') + '</table>' : '<p class="muted">No quizzes taken yet.</p>'}
     <h2>Recent misses</h2>
     ${d.misses.length ? '<ul class="misses">' + d.misses.map(m=>`<li>${fmtDate(m.t)}: ${esc(modeName(m.mode))}, ${esc(stakeName(m.stake))}, ${esc(streetName(m.phase))}. ${m.timedOut ? 'Time ran out' : 'Answered $' + esc(m.answer)}, correct was $${esc(m.correctAnswer)}.</li>`).join('') + '</ul>' : '<p class="muted">No missed questions on record.</p>'}`;
   $('edSave').addEventListener('click', ()=>rosterRun([{op:'edit', badge:d.badge, name:$('edName').value, group:$('edGroup').value}], 'Saved.'));
