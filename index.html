@@ -465,6 +465,28 @@
     .scoreboard .streak{font-size:15px;}
   }
 
+  /* Phone layout: built-in number pad instead of the phone keyboard */
+  .numpad{display:none;}
+  body.phone .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:0 0 4px;}
+  body.phone .numpad button{
+    min-height:36px;border:1px solid var(--rule-strong);border-radius:4px;background:#fff;color:var(--ink);
+    font-size:20px;font-weight:600;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:0;
+  }
+  body.phone .numpad button:active{background:#e4e6e8;}
+  body.phone .numpad button.fn{font-size:15px;background:var(--surface);}
+  body.phone .answer-panel:has(#answerInput:disabled) .numpad{opacity:.35;pointer-events:none;}
+  body.phone #answerInput{caret-color:transparent;}
+  body.phone .answer-panel{padding:10px 12px;}
+  body.phone .question{min-height:40px;line-height:1.35;margin-bottom:8px;font-size:15px;}
+  body.phone .timer{margin-bottom:6px;}
+  body.phone .numpad{gap:4px;}
+  body.phone .answer-row{margin-bottom:8px;}
+  body.phone .answer-row input{min-height:44px;}
+  body.phone .table-panel{margin-bottom:8px;}
+  body.phone .table-frame{transform-origin:top center;}
+  body.phone.quiz-run .quizbar{position:sticky;top:0;z-index:30;padding:6px 12px;margin-bottom:6px;}
+  body.phone .quizbar-track{margin-top:5px;}
+
   /* Quiz mode */
   .quizbar,.quiz-screen{display:none;}
   body.quiz-mode.quiz-run .quizbar{display:block;}
@@ -691,6 +713,12 @@
     <div class="answer-row">
       <input type="number" inputmode="numeric" enterkeyhint="done" autocomplete="off" id="answerInput" placeholder="Total amount ($)">
       <button class="btn" id="submitBtn">Lock it in</button>
+    </div>
+    <div class="numpad" id="numpad" aria-label="Number pad">
+      <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+      <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+      <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+      <button type="button" class="fn" data-k="clr">Clear</button><button type="button" data-k="0">0</button><button type="button" class="fn" data-k="back" aria-label="Delete">Delete</button>
     </div>
     <div class="feedback" id="feedback"></div>
     <div class="ticket" id="ticket">
@@ -1615,12 +1643,47 @@ function animateDeal(sc, startIdx){
   dealTimer = setTimeout(doStep, 450);
 }
 
-// Keep the table on screen. On a phone, never let the browser scroll the page by itself.
+// Keep the table on screen. On a phone the page uses a built-in number pad (no phone keyboard),
+// the table is sized so table, question and pad fit together, and the page never scrolls by itself.
 const TOUCH_DEVICE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+const PHONE = !!(window.matchMedia && window.matchMedia('(pointer:coarse) and (max-width:520px)').matches);
+if(PHONE){
+  document.body.classList.add('phone');
+  const ai = document.getElementById('answerInput');
+  ai.readOnly = true;
+  ai.setAttribute('inputmode', 'none');
+}
+function topGap(){
+  if(!document.body.classList.contains('quiz-run')) return 8;
+  const qb = document.querySelector('.quizbar');
+  return (qb ? qb.offsetHeight : 44) + 6;
+}
+function fitTable(){
+  const tp = document.querySelector('.table-panel');
+  const fr = document.querySelector('.table-frame');
+  if(!tp || !fr) return;
+  if(!PHONE || tp.offsetParent === null){ tp.style.height = ''; fr.style.transform = ''; return; }
+  const w = tp.clientWidth;
+  const bar = topGap();
+  const panel = document.querySelector('.answer-panel');
+  const tm = document.getElementById('timer');
+  const rest = panel.offsetHeight + 8 + ((tm && tm.hidden && timerOn()) ? 38 : 0);
+  const avail = window.innerHeight - bar - rest;
+  const sc = Math.max(0.5, Math.min(1, avail / w));
+  fr.style.transform = sc < 1 ? `scale(${sc})` : '';
+  tp.style.height = (w * sc) + 'px';
+}
 function ensureTableView(){
   const tp = document.querySelector('.table-panel');
   const inp = document.getElementById('answerInput');
   if(!tp || !inp || tp.offsetParent === null) return;
+  if(PHONE){
+    fitTable();
+    const bar = topGap();
+    const top = Math.max(0, Math.round(tp.getBoundingClientRect().top + window.scrollY - bar));
+    if(Math.abs(window.scrollY - top) > 1) window.scrollTo({top:top, left:0, behavior:'auto'});
+    return;
+  }
   const t = tp.getBoundingClientRect(), a = inp.getBoundingClientRect();
   const vh = window.innerHeight, pad = 8;
   let dy = 0;
@@ -1628,6 +1691,7 @@ function ensureTableView(){
   else if(a.bottom > vh - pad) dy = Math.min(a.bottom - (vh - pad), t.top - pad);
   if(Math.abs(dy) > 1) window.scrollBy({top:dy, left:0, behavior:'auto'});
 }
+window.addEventListener('resize', ()=>{ if(PHONE) fitTable(); });
 
 function presentQuiz(sc, entry, idx){
   currentSkip = null;
@@ -1717,6 +1781,7 @@ function dealHand(prebuilt){
   document.getElementById('answerInput').disabled = true;
   document.getElementById('submitBtn').disabled = true;
   renderSeatsBase(scenario);
+  if(!QZ) ensureTableView();
   if(scenario.carryoverPot){
     showCenterPot(scenario.carryoverPot);
   } else {
@@ -1890,6 +1955,15 @@ function updateScoreboard(){
   document.getElementById('tallyVal').textContent = `${correct} / ${attempts} correct`;
 }
 
+document.getElementById('numpad').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-k]');
+  const inp = document.getElementById('answerInput');
+  if(!b || inp.disabled || answered) return;
+  const k = b.dataset.k;
+  if(k === 'back') inp.value = inp.value.slice(0, -1);
+  else if(k === 'clr') inp.value = '';
+  else if(inp.value.length < 7) inp.value = (inp.value === '0' ? '' : inp.value) + k;
+});
 document.getElementById('submitBtn').addEventListener('click', submitAnswer);
 document.getElementById('answerInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') submitAnswer();
