@@ -278,6 +278,7 @@
     font-size:16px;
     line-height:1.5;
     margin-bottom:12px;
+    min-height:48px;
   }
   .question b{font-weight:600;}
 
@@ -582,6 +583,12 @@
         <span class="module-text">Practice your pot calculation for the games we offer in our poker room.</span>
         <span class="module-go">Start training <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </button>
+      <button class="module" id="openQuiz22" type="button">
+        <span class="module-tag">Graded quiz</span>
+        <span class="module-title">2/2 Pot Limit Omaha Quiz</span>
+        <span class="module-text">Ten whole hands of 2 / 2 PLO, five with a straddle. Your accuracy and speed are graded at the end.</span>
+        <span class="module-go">Start the quiz <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
       <button class="module" id="openQuiz" type="button">
         <span class="module-tag">Graded quiz</span>
         <span class="module-title">Pot Limit Omaha Quiz</span>
@@ -633,7 +640,7 @@
 
   <div class="quiz-screen" id="quizIntro">
     <h2>Pot Limit Omaha Quiz</h2>
-    <p>You will be quizzed on 10 whole hands. Each hand is at a random stake and may include a straddle, a double straddle or all-ins.</p>
+    <p id="quizIntroText"></p>
     <ul>
       <li>Each question has a 40 second timer. If time runs out, the answer counts as wrong.</li>
       <li>You are asked the pot size bet and the pot as the hand plays out.</li>
@@ -1608,6 +1615,20 @@ function animateDeal(sc, startIdx){
   dealTimer = setTimeout(doStep, 450);
 }
 
+// Keep the table on screen. On a phone, never let the browser scroll the page by itself.
+const TOUCH_DEVICE = !!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
+function ensureTableView(){
+  const tp = document.querySelector('.table-panel');
+  const inp = document.getElementById('answerInput');
+  if(!tp || !inp || tp.offsetParent === null) return;
+  const t = tp.getBoundingClientRect(), a = inp.getBoundingClientRect();
+  const vh = window.innerHeight, pad = 8;
+  let dy = 0;
+  if(t.top < pad) dy = t.top - pad;
+  else if(a.bottom > vh - pad) dy = Math.min(a.bottom - (vh - pad), t.top - pad);
+  if(Math.abs(dy) > 1) window.scrollBy({top:dy, left:0, behavior:'auto'});
+}
+
 function presentQuiz(sc, entry, idx){
   currentSkip = null;
   setActing(null);
@@ -1634,9 +1655,11 @@ function presentQuiz(sc, entry, idx){
   document.getElementById('answerInput').value = '';
   document.getElementById('answerInput').disabled = false;
   document.getElementById('submitBtn').disabled = false;
-  document.getElementById('answerInput').focus();
+  // On a phone, do not pop the keyboard open by itself. It covers the table and moves the page.
+  if(!TOUCH_DEVICE) document.getElementById('answerInput').focus({preventScroll:true});
   quizShownAt = performance.now();
   startTimer();
+  ensureTableView();
 }
 
 function handComplete(sc){
@@ -1750,6 +1773,7 @@ function submitAnswer(timedOut){
   const val = parseInt(document.getElementById('answerInput').value, 10);
   if(timedOut !== true && isNaN(val)) return;
   stopTimer();
+  document.getElementById('answerInput').blur();
   const q = currentQuiz;
   answered = true;
   attempts++;
@@ -1768,7 +1792,7 @@ function submitAnswer(timedOut){
     if(timedOut === true) Sound.buzz(); else if(!QZ) Sound.bad();
   }
   track('answer', {
-    mode: QZ ? 'quiz' : currentStreet, stake: currentStake.key, phase: q.phase || 'pre',
+    mode: QZ ? QZ.mode : currentStreet, stake: currentStake.key, phase: q.phase || 'pre',
     correct: (timedOut !== true && val === q.correctPutIn),
     answer: (timedOut === true || isNaN(val)) ? null : val,
     correctAnswer: q.correctPutIn,
@@ -1851,6 +1875,7 @@ function proceedToNextAction(){
   document.getElementById('answerInput').placeholder = 'Total amount ($)';
   document.getElementById('answerInput').value = '';
   currentQuiz = null;
+  ensureTableView();
   const hasMoreToDeal = resumeIdx < scenario.log.length;
   if(hasMoreToDeal){
     document.getElementById('questionText').innerHTML = `Dealing the hand&hellip; <button id="skipBtn" class="btn secondary" style="padding:5px 12px;font-size:12px;margin-left:6px;">Skip ahead</button>`;
@@ -1899,12 +1924,13 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
 const QUIZ_HANDS = 10;
 let QZ = null;
 
-function randomQuizHand(){
+function randomQuizHand(straddleWanted){
   let last = null;
+  const only22 = QZ.mode === 'quiz22';
   for(let tries = 0; tries < 60; tries++){
-    const stake = pick(STAKES);
-    const straddle = Math.random() < 0.2;
-    const dbl = straddle && Math.random() < 0.25;
+    const stake = only22 ? STAKES[0] : pick(STAKES);
+    const straddle = only22 ? !!straddleWanted : Math.random() < 0.2;
+    const dbl = !only22 && straddle && Math.random() < 0.25;
     const allIn = Math.random() < 0.4;
     const sc = generateWholeHandScenario(stake, {straddle:straddle, doubleStraddle:dbl, allIn:allIn});
     const nq = sc.log.filter(e=>e.quiz).length;
@@ -1920,17 +1946,28 @@ function setQuizClasses(state){
   if(state){ c.add('quiz-mode', 'quiz-' + state); } else { c.remove('quiz-mode'); }
 }
 
-function startQuiz(){
+const QUIZ_INTRO = {
+  quiz22: 'You will be quizzed on 10 whole hands. All hands are $2 / $2 PLO. Five hands have a straddle and five do not. Hands may also include all-ins.',
+  quiz: 'You will be quizzed on 10 whole hands. Each hand is at a random stake and may include a straddle, a double straddle or all-ins.'
+};
+const QUIZ_TITLE = {quiz22:'2/2 Pot Limit Omaha Quiz', quiz:'Pot Limit Omaha Quiz'};
+
+function startQuiz(mode){
+  mode = (mode === 'quiz22') ? 'quiz22' : 'quiz';
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   started = false;
-  QZ = {hand:0, results:[], hands:[], startedAt:null, done:false, adv:null};
+  const plan = [true,true,true,true,true,false,false,false,false,false];
+  for(let i = plan.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [plan[i], plan[j]] = [plan[j], plan[i]]; }
+  QZ = {mode:mode, hand:0, results:[], hands:[], startedAt:null, done:false, adv:null, plan:plan};
+  document.getElementById('quizIntroText').textContent = QUIZ_INTRO[mode];
+  document.querySelector('#quizIntro h2').textContent = QUIZ_TITLE[mode];
   document.body.classList.remove('view-hub');
   setQuizClasses('intro');
-  document.querySelector('.nameplate .brand h1').textContent = 'Pot Limit Omaha Quiz';
+  document.querySelector('.nameplate .brand h1').textContent = QUIZ_TITLE[mode];
   document.querySelector('.nameplate .brand p:not(.signed)').textContent = 'Graded on accuracy and speed.';
   window.scrollTo(0, 0);
-  track('open', {module:'quiz'});
+  track('open', {module:mode});
 }
 
 function leaveQuiz(){
@@ -1951,7 +1988,7 @@ function beginQuiz(){
 function nextQuizHand(){
   if(!QZ || QZ.done) return;
   if(QZ.hand >= QUIZ_HANDS){ finishQuiz(); return; }
-  const h = randomQuizHand();
+  const h = randomQuizHand(!!QZ.plan[QZ.hand]);
   QZ.hand++;
   QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
   QZ.hands.push(QZ.cur);
@@ -1959,8 +1996,9 @@ function nextQuizHand(){
   document.getElementById('quizBarHand').textContent = `Hand ${QZ.hand} of ${QUIZ_HANDS}`;
   document.getElementById('quizBarStake').textContent = `${h.stake.label} PLO`;
   document.getElementById('quizBarFill').style.width = ((QZ.hand - 1) / QUIZ_HANDS * 100) + '%';
-  window.scrollTo(0, 0);
   dealHand(h.sc);
+  window.scrollTo(0, 0);
+  ensureTableView();
 }
 
 function explainQuestion(q){
@@ -2025,14 +2063,18 @@ function finishQuiz(){
   const row = (label, g)=> g.q ? `<tr><td>${label}</td><td class="num">${g.q}</td><td class="num">${g.c}</td><td class="num">${g.pct}%</td><td class="num">${qSec(g.avg)}</td></tr>` : '';
   const head = (first)=>`<thead><tr><th>${first}</th><th class="num">Qs</th><th class="num">Right</th><th class="num">Acc.</th><th class="num">Avg time</th></tr></thead>`;
 
-  const byStake = STAKES.map(st=>row(st.label + ' PLO', qGroup(R.filter(r=>r.stakeKey === st.key)))).join('');
   const byType = row('Pot size bet', qGroup(R.filter(r=>r.kind === 'bet'))) + row('Pot count', qGroup(R.filter(r=>r.kind === 'pot')));
-  const bySituation = [
+  const byStake = STAKES.map(st=>row(st.label + ' PLO', qGroup(R.filter(r=>r.stakeKey === st.key)))).join('');
+  const only22 = QZ.mode === 'quiz22';
+  const bySituation = (only22 ? [
+    ['Straddle hands', r=>r.straddle],
+    ['No straddle hands', r=>!r.straddle]
+  ] : [
     ['Straddle hands', r=>r.straddle && !r.dbl],
     ['Double straddle hands', r=>r.dbl],
     ['All-in hands', r=>r.allIn],
     ['Regular hands', r=>!r.straddle && !r.dbl && !r.allIn]
-  ].map(([lbl, f])=>row(lbl, qGroup(R.filter(f)))).join('');
+  ]).map(([lbl, f])=>row(lbl, qGroup(R.filter(f)))).join('');
 
   const handRows = QZ.hands.map(h=>{
     const rs = R.filter(r=>r.hand === h.n);
@@ -2058,19 +2100,20 @@ function finishQuiz(){
       <div class="qr-stat"><b>${qSec(all.avg)}</b><span>Average time per answer</span></div>
       <div class="qr-stat"><b>${qTime(elapsed)}</b><span>Total time (${answerSecs.toFixed(0)} s answering)</span></div>
     </div>
-    <h3 class="qr-h">By stake</h3><div class="qr-wrap"><table class="qr-table">${head('Stake')}<tbody>${byStake}</tbody></table></div>
+    ${only22 ? '' : `<h3 class="qr-h">By stake</h3><div class="qr-wrap"><table class="qr-table">${head('Stake')}<tbody>${byStake}</tbody></table></div>`}
     <h3 class="qr-h">By question type</h3><div class="qr-wrap"><table class="qr-table">${head('Type')}<tbody>${byType}</tbody></table></div>
     <h3 class="qr-h">By situation</h3><div class="qr-wrap"><table class="qr-table">${head('Situation')}<tbody>${bySituation}</tbody></table></div>
     <h3 class="qr-h">Hand by hand</h3><div class="qr-wrap"><table class="qr-table"><thead><tr><th>Hand</th><th>Stake</th><th>Extras</th><th class="num">Correct</th><th class="num">Time</th></tr></thead><tbody>${handRows}</tbody></table></div>
     <h3 class="qr-h">What you missed</h3>
     ${wrong ? misses : '<p class="qr-good">Nothing. Every answer was correct.</p>'}
     <div class="qr-actions"><button class="btn" id="quizAgain" type="button">Take another quiz</button><button class="btn secondary" id="quizHome" type="button">Back to Training Hub</button></div>`;
-  document.getElementById('quizAgain').addEventListener('click', startQuiz);
+  const again = QZ.mode;
+  document.getElementById('quizAgain').addEventListener('click', ()=>startQuiz(again));
   document.getElementById('quizHome').addEventListener('click', showHub);
   document.getElementById('quizBarFill').style.width = '100%';
   setQuizClasses('done');
   window.scrollTo(0, 0);
-  track('quiz', {mode:'quiz', answer: `${all.c} of ${all.q}`, correctAnswer: pct, seconds: Math.round(elapsed / 100) / 10});
+  track('quiz', {mode:QZ.mode, answer: `${all.c} of ${all.q}`, correctAnswer: pct, seconds: Math.round(elapsed / 100) / 10});
 }
 
 // ---- Tracker (Google Sheet) ----
@@ -2140,7 +2183,7 @@ function showHub(){
   window.scrollTo(0, 0);
 }
 function openModule(name){
-  if(name === 'quiz'){ startQuiz(); return; }
+  if(name === 'quiz' || name === 'quiz22'){ startQuiz(name); return; }
   if(name !== 'plo') return;
   leaveQuiz();
   document.body.classList.remove('view-hub');
@@ -2211,6 +2254,7 @@ document.getElementById('signOutBtn').addEventListener('click', lockSite);
 document.getElementById('hubSignOut').addEventListener('click', lockSite);
 document.getElementById('backHub').addEventListener('click', showHub);
 document.getElementById('openPlo').addEventListener('click', ()=>openModule('plo'));
+document.getElementById('openQuiz22').addEventListener('click', ()=>openModule('quiz22'));
 document.getElementById('openQuiz').addEventListener('click', ()=>openModule('quiz'));
 document.getElementById('quizBegin').addEventListener('click', beginQuiz);
 document.getElementById('quizCancel').addEventListener('click', showHub);
