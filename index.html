@@ -1596,7 +1596,10 @@ function applyStreetTransition(sc, entry){
     setTimeout(()=>{ old.forEach(d=>d.remove()); }, 500);
     Sound.sweep();
   }
-  showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase(), entry.hidePot);
+  // Quiz: if the pot count just before this street was wrong, show the real pot so the dealer can keep going from the right number.
+  const revealPot = !!(QZ && QZ.revealPot);
+  if(QZ) QZ.revealPot = false;
+  showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase(), entry.hidePot && !revealPot);
   document.getElementById('questionText').innerHTML = `<b style="font-size:20px;">${entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase()}</b>`;
 }
 
@@ -2062,6 +2065,7 @@ function beginQuiz(){
 function nextQuizHand(){
   if(!QZ || QZ.done) return;
   if(QZ.hand >= QUIZ_HANDS){ finishQuiz(); return; }
+  QZ.revealPot = false;
   const h = randomQuizHand(!!QZ.plan[QZ.hand]);
   QZ.hand++;
   QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
@@ -2104,6 +2108,7 @@ function quizRecord(q, val, timedOut){
     seconds: secs, timedOut: timedOut, explain: explainQuestion(q)
   });
   if(!q.potQuiz) revealQuizChip(scenario, q);
+  if(q.potQuiz) QZ.revealPot = !right;
   const fb = document.getElementById('feedback');
   fb.textContent = ''; fb.className = 'feedback';
   document.getElementById('answerInput').disabled = true;
