@@ -504,6 +504,8 @@
   .quiz-screen h2{font-size:22px;margin:0 0 8px;}
   .quiz-screen p{margin:0 0 10px;color:var(--muted);font-size:15px;line-height:1.45;}
   .quiz-screen ul{margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;}
+  .qr-banner{border:1px solid var(--rule);border-left:5px solid #a52621;border-radius:4px;background:#fff;padding:10px 14px;margin:12px 0 0;font-weight:600;line-height:1.4;}
+  .qr-banner.good{border-left-color:var(--good);}
   .qr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0 18px;}
   .qr-stat{border:1px solid var(--rule);border-top:3px solid #a52621;border-radius:4px;padding:10px 12px;background:#fff;}
   .qr-stat b{display:block;font-size:24px;line-height:1.1;}
@@ -561,6 +563,31 @@
     .module:hover .module-go svg{transform:translateX(5px);}
   }
   @media (max-width:520px){.hub-top{margin:-14px -12px 0;padding:12px;}.hub-main{padding-top:26px;}.hub-main h1{font-size:24px;}}
+  #ploMenu{display:none;}
+  body.view-plo #ploMenu{display:block;}
+  body.view-plo #hubHome{display:none;}
+  #ploMenu .back-link{margin:0 0 10px -4px;}
+  /* Level colors: Beginner green, Intermediate amber, Advanced red */
+  .module[data-level="beginner"], body.lv-beginner{--lv:#1f7a4d;}
+  .module[data-level="intermediate"], body.lv-intermediate{--lv:#b45f06;}
+  .module[data-level="advanced"], body.lv-advanced{--lv:#a52621;}
+  .module[data-level]{border-top-color:var(--lv);}
+  .module[data-level] .module-tag{display:inline-block;background:var(--lv);color:#fff;padding:2px 9px;border-radius:3px;letter-spacing:.05em;}
+  .module[data-level] .module-prog{color:var(--lv);}
+  .module[data-level].locked,.module.locked[data-level]{border-top-color:var(--lv);}
+  @media (hover:hover){ .module[data-level]:hover{border-top-color:var(--lv);} .module[data-level].locked:hover{border-top-color:var(--lv);} }
+  body[class*="lv-"] .quiz-screen{border-top-color:var(--lv);}
+  body[class*="lv-"] .quizbar-fill{background:var(--lv);}
+  body[class*="lv-"] .qr-stat{border-top-color:var(--lv);}
+  body[class*="lv-"] .qr-banner{border-left-color:var(--lv);}
+  body[class*="lv-"] .qr-banner.good{border-left-color:var(--good);}
+  .hub-h{font-size:17px;margin:26px 0 4px;}
+  .hub-h + .hub-sub2{margin:0 0 14px;color:var(--muted);font-size:14px;}
+  .module .module-prog{font-size:14px;font-weight:600;color:var(--ink);}
+  .module:disabled,.module.locked{cursor:not-allowed;opacity:.62;border-top-color:#9aa1a6;}
+  .module.locked:hover{border-color:var(--rule);border-top-color:#9aa1a6;}
+  .module.locked .module-go svg{display:none;}
+  .ver{margin:26px 0 0;color:var(--muted);font-size:12px;}
   .hub-note{margin:22px 0 0;color:var(--muted);font-size:14px;}
   .fb{max-width:760px;margin:44px auto 0;padding-top:24px;border-top:1px solid var(--rule);}
   .fb h2{font-size:18px;margin:0 0 4px;}
@@ -596,8 +623,23 @@
     <div class="hub-who"><span>Badge <span id="hubBadge"></span></span><button class="linkbtn" id="hubSignOut" type="button">Sign out</button></div>
   </div></header>
   <main class="hub-main">
+    <div id="hubHome">
     <h1>Dealer Training Hub</h1>
     <p class="hub-sub">Choose a training to begin.</p>
+    <div class="hub-grid">
+      <button class="module" id="openPloMenu" type="button">
+        <span class="module-tag">Training</span>
+        <span class="module-title">Pot Limit Omaha</span>
+        <span class="module-text">Practice, quizzes and levels for pot calculation.</span>
+        <span class="module-go">Open <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+    </div>
+    <p class="hub-note">More training to come.</p>
+    </div>
+    <div id="ploMenu">
+    <button class="linkbtn back-link" id="ploMenuBack" type="button">&lsaquo; Training Hub</button>
+    <h1>Pot Limit Omaha</h1>
+    <p class="hub-sub">Choose a training or a quiz.</p>
     <div class="hub-grid">
       <button class="module" id="openPlo" type="button">
         <span class="module-tag">Pot calculation</span>
@@ -608,11 +650,32 @@
       <button class="module" id="openQuiz22" type="button">
         <span class="module-tag">Graded quiz</span>
         <span class="module-title">2/2 Pot Limit Omaha Quiz</span>
-        <span class="module-text">Ten whole hands of 2 / 2 PLO, five with a straddle. Your accuracy and speed are graded at the end.</span>
         <span class="module-go">Start the quiz <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       </button>
     </div>
-    <p class="hub-note">More training to come.</p>
+    <h3 class="hub-h">Quiz levels</h3>
+    <p class="hub-sub2">Get every question right five times to unlock the next level.</p>
+    <div class="hub-grid" id="levelGrid">
+      <button class="module" id="openBeginner" data-level="beginner" type="button">
+        <span class="module-tag">Level 1</span>
+        <span class="module-title">Beginner</span>
+        <span class="module-prog" data-prog></span>
+        <span class="module-go"><span data-go>Start the quiz</span> <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <button class="module" id="openIntermediate" data-level="intermediate" type="button">
+        <span class="module-tag">Level 2</span>
+        <span class="module-title">Intermediate</span>
+        <span class="module-prog" data-prog></span>
+        <span class="module-go"><span data-go>Start the quiz</span> <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <button class="module" id="openAdvanced" data-level="advanced" type="button">
+        <span class="module-tag">Level 3</span>
+        <span class="module-title">Advanced</span>
+        <span class="module-prog" data-prog></span>
+        <span class="module-go"><span data-go>Start the quiz</span> <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h11M10 4.5L14.5 9 10 13.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+    </div>
+    </div>
     <section class="fb" aria-labelledby="fbTitle">
       <h2 id="fbTitle">Suggestions</h2>
       <p>Tell us what would make this training better. Your name and badge number are sent with it.</p>
@@ -628,13 +691,14 @@
         <span class="fb-status" id="fbStatus" role="status"></span>
       </div>
     </section>
+    <p class="ver">Site version: 26 Nov, pot reveal fix 2</p>
   </main>
 </div>
 <div class="wrap">
 
   <div class="nameplate">
     <div class="brand">
-      <button class="linkbtn back-link" id="backHub" type="button">&lsaquo; Training Hub</button>
+      <button class="linkbtn back-link" id="backHub" type="button">&lsaquo; Pot Limit Omaha</button>
       <h1>PLO Pot Trainer</h1>
       <p>Practice announcing the count.</p>
       <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button></p>
@@ -659,11 +723,10 @@
     <p id="quizIntroText"></p>
     <ul>
       <li>Each question has a 40 second timer. If time runs out, the answer counts as wrong.</li>
-      <li>You are asked the pot size bet and the pot as the hand plays out.</li>
       <li>You will not see the answers until the end.</li>
       <li>At the end you get your accuracy, your speed and a list of what you missed.</li>
     </ul>
-    <div class="qr-actions"><button class="btn" id="quizBegin" type="button">Start the quiz</button><button class="btn secondary" id="quizCancel" type="button">Back to Training Hub</button></div>
+    <div class="qr-actions"><button class="btn" id="quizBegin" type="button">Start the quiz</button><button class="btn secondary" id="quizCancel" type="button">Back</button></div>
   </div>
   <div class="quiz-screen" id="quizResults"></div>
 
@@ -1590,9 +1653,8 @@ function applyStreetTransition(sc, entry){
     setTimeout(()=>{ old.forEach(d=>d.remove()); }, 500);
     Sound.sweep();
   }
-  // Quiz: if the pot count just before this street was wrong, show the real pot so the dealer can keep going from the right number.
+  // Quiz: if the last pot count was wrong, keep showing the real pot on every street until the next pot question is asked.
   const revealPot = !!(QZ && QZ.revealPot);
-  if(QZ) QZ.revealPot = false;
   showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase(), entry.hidePot && !revealPot);
   document.getElementById('questionText').innerHTML = `<b style="font-size:20px;">${entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase()}</b>`;
 }
@@ -1995,7 +2057,69 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
 const QUIZ_HANDS = 10;
 let QZ = null;
 
+// ---- Quiz levels ----
+const LEVEL_ORDER = ['beginner', 'intermediate', 'advanced'];
+const PERFECT_NEEDED = 5;
+// "pots" = pot-size bets asked on one street. ok() checks the whole hand.
+const LEVELS = {
+  beginner:     {title:'Beginner',     hands:10, straddle:0,   dbl:0,    allIn:0,   ok:s=>s.max <= 1 && s.sum >= 2,
+    intro:'You will be quizzed on 10 whole hands.'},
+  intermediate: {title:'Intermediate', hands:10, straddle:0.2, dbl:0,    allIn:0.5, ok:s=>s.max <= 2 && s.sum >= 3,
+    intro:'You will be quizzed on 10 whole hands.'},
+  advanced:     {title:'Advanced',     hands:10, straddle:0.3, dbl:0.25, allIn:0.6, ok:s=>s.max <= 3 && s.n3 <= 1 && s.sum >= 4 && s.sum <= 6 && s.n2 >= 1,
+    intro:'You will be quizzed on 10 whole hands.'}
+};
+let PROG = {beginner:0, intermediate:0, advanced:0};
+function loadProg(){
+  LEVEL_ORDER.forEach(k=>PROG[k] = 0);
+  try{ const j = JSON.parse(lsGet('plo-prog-' + currentBadge) || '{}'); LEVEL_ORDER.forEach(k=>PROG[k] = Number(j[k]) || 0); }catch(e){}
+}
+function saveProg(){ lsSet('plo-prog-' + currentBadge, JSON.stringify(PROG)); }
+function mergeProg(sv){
+  if(!sv) return;
+  LEVEL_ORDER.forEach(k=>{ PROG[k] = Math.max(PROG[k] || 0, Number(sv[k]) || 0); });
+  saveProg(); renderLevels();
+}
+function levelUnlocked(k){
+  const i = LEVEL_ORDER.indexOf(k);
+  return i === 0 || PROG[LEVEL_ORDER[i - 1]] >= PERFECT_NEEDED;
+}
+function renderLevels(){
+  document.querySelectorAll('#levelGrid .module').forEach(btn=>{
+    const k = btn.dataset.level, i = LEVEL_ORDER.indexOf(k);
+    const open = levelUnlocked(k), n = PROG[k] || 0;
+    btn.classList.toggle('locked', !open);
+    btn.setAttribute('aria-disabled', open ? 'false' : 'true');
+    const prog = btn.querySelector('[data-prog]'), go = btn.querySelector('[data-go]');
+    if(!open){
+      prog.textContent = 'Locked';
+      go.textContent = 'Get 100% five times on ' + LEVELS[LEVEL_ORDER[i - 1]].title + ' to unlock';
+    } else {
+      prog.textContent = n >= PERFECT_NEEDED ? 'Complete. ' + n + ' perfect runs.' : 'Perfect runs: ' + n + ' of ' + PERFECT_NEEDED;
+      go.textContent = n >= PERFECT_NEEDED ? 'Practice again' : 'Start the quiz';
+    }
+  });
+}
+function levelHand(mode, stake){
+  const L = LEVELS[mode];
+  let last = null;
+  for(let tries = 0; tries < 300; tries++){
+    const straddle = Math.random() < L.straddle;
+    const dbl = straddle && Math.random() < L.dbl;
+    const allIn = Math.random() < L.allIn;
+    const sc = generateWholeHandScenario(stake, {straddle:straddle, doubleStraddle:dbl, allIn:allIn});
+    const cnt = {};
+    sc.log.forEach(e=>{ if(e.quiz && !e.potQuiz) cnt[e.phase] = (cnt[e.phase] || 0) + 1; });
+    const v = Object.values(cnt);
+    const st = {max:Math.max(0, ...v), sum:v.reduce((a,b)=>a + b, 0), n3:v.filter(x=>x >= 3).length, n2:v.filter(x=>x >= 2).length};
+    last = {sc, stake, straddle:!!sc.willStraddle, dbl:!!sc.willDblStraddle, allIn: sc.log.some(e=>e.allIn)};
+    if(L.ok(st)) return last;
+  }
+  return last;
+}
+
 function randomQuizHand(straddleWanted){
+  if(LEVELS[QZ.mode]) return levelHand(QZ.mode, QZ.stakePlan[QZ.hand]);
   let last = null;
   const only22 = QZ.mode === 'quiz22';
   for(let tries = 0; tries < 60; tries++){
@@ -2018,20 +2142,31 @@ function setQuizClasses(state){
 }
 
 const QUIZ_INTRO = {
-  quiz22: 'You will be quizzed on 10 whole hands. All hands are $2 / $2 PLO. Five hands have a straddle and five do not. Hands may also include all-ins.',
-  quiz: 'You will be quizzed on 10 whole hands. Each hand is at a random stake and may include a straddle, a double straddle or all-ins.'
+  quiz22: 'You will be quizzed on 10 whole hands.',
+  quiz: 'You will be quizzed on 10 whole hands.'
 };
-const QUIZ_TITLE = {quiz22:'2/2 Pot Limit Omaha Quiz', quiz:'Pot Limit Omaha Quiz'};
+const QUIZ_TITLE = {quiz22:'2/2 Pot Limit Omaha Quiz', quiz:'Pot Limit Omaha Quiz', beginner:'Beginner Quiz', intermediate:'Intermediate Quiz', advanced:'Advanced Quiz'};
 
 function startQuiz(mode){
-  mode = (mode === 'quiz22') ? 'quiz22' : 'quiz';
+  mode = (mode === 'quiz22' || LEVELS[mode]) ? mode : 'quiz';
+  if(LEVELS[mode] && !levelUnlocked(mode)) return;
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   started = false;
   const plan = [true,true,true,true,true,false,false,false,false,false];
   for(let i = plan.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [plan[i], plan[j]] = [plan[j], plan[i]]; }
-  QZ = {mode:mode, hand:0, results:[], hands:[], startedAt:null, done:false, adv:null, plan:plan};
-  document.getElementById('quizIntroText').textContent = QUIZ_INTRO[mode];
+  const total = LEVELS[mode] ? LEVELS[mode].hands : QUIZ_HANDS;
+  const order = STAKES.slice();
+  for(let i = order.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  const stakePlan = [];
+  while(stakePlan.length < total){ const r = order.slice(); for(let i = r.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [r[i], r[j]] = [r[j], r[i]]; } r.forEach(x=>stakePlan.push(x)); }
+  stakePlan.length = total;
+  document.body.classList.remove('lv-beginner','lv-intermediate','lv-advanced');
+  if(LEVELS[mode]) document.body.classList.add('lv-' + mode);
+  QZ = {mode:mode, total:total, stakePlan:stakePlan, hand:0, results:[], hands:[], startedAt:null, done:false, adv:null, plan:plan};
+  document.getElementById('quizIntroText').textContent = LEVELS[mode]
+    ? LEVELS[mode].intro + ' Perfect runs so far: ' + PROG[mode] + ' of ' + PERFECT_NEEDED + '.'
+    : QUIZ_INTRO[mode];
   document.querySelector('#quizIntro h2').textContent = QUIZ_TITLE[mode];
   document.body.classList.remove('view-hub');
   setQuizClasses('intro');
@@ -2042,6 +2177,7 @@ function startQuiz(mode){
 }
 
 function leaveQuiz(){
+  document.body.classList.remove('lv-beginner','lv-intermediate','lv-advanced');
   if(QZ){ clearTimeout(QZ.adv); }
   QZ = null;
   setQuizClasses(null);
@@ -2058,16 +2194,16 @@ function beginQuiz(){
 
 function nextQuizHand(){
   if(!QZ || QZ.done) return;
-  if(QZ.hand >= QUIZ_HANDS){ finishQuiz(); return; }
+  if(QZ.hand >= QZ.total){ finishQuiz(); return; }
   QZ.revealPot = false;
   const h = randomQuizHand(!!QZ.plan[QZ.hand]);
   QZ.hand++;
   QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
   QZ.hands.push(QZ.cur);
   currentStake = h.stake;
-  document.getElementById('quizBarHand').textContent = `Hand ${QZ.hand} of ${QUIZ_HANDS}`;
+  document.getElementById('quizBarHand').textContent = `Hand ${QZ.hand} of ${QZ.total}`;
   document.getElementById('quizBarStake').textContent = `${h.stake.label} PLO`;
-  document.getElementById('quizBarFill').style.width = ((QZ.hand - 1) / QUIZ_HANDS * 100) + '%';
+  document.getElementById('quizBarFill').style.width = ((QZ.hand - 1) / QZ.total * 100) + '%';
   dealHand(h.sc);
   window.scrollTo(0, 0);
   ensureTableView();
@@ -2164,9 +2300,24 @@ function finishQuiz(){
   }).join('');
 
   const pct = all.pct;
+  let banner = '';
+  const L = LEVELS[QZ.mode];
+  if(L){
+    const perfect = all.q > 0 && wrong === 0;
+    const before = PROG[QZ.mode] || 0;
+    if(perfect){ PROG[QZ.mode] = before + 1; saveProg(); renderLevels(); }
+    const n = PROG[QZ.mode], i = LEVEL_ORDER.indexOf(QZ.mode), next = LEVEL_ORDER[i + 1];
+    let msg, cls = 'qr-banner';
+    if(perfect && n === PERFECT_NEEDED && next){ msg = `Perfect run. That is ${n} of ${PERFECT_NEEDED}. You unlocked the ${LEVELS[next].title} quiz.`; cls += ' good'; }
+    else if(perfect && n === PERFECT_NEEDED){ msg = `Perfect run. That is ${n} of ${PERFECT_NEEDED}. You have completed every level.`; cls += ' good'; }
+    else if(perfect){ msg = n > PERFECT_NEEDED ? `Perfect run. The ${L.title} level is already complete.` : `Perfect run. That is ${n} of ${PERFECT_NEEDED}${next ? ' toward unlocking ' + LEVELS[next].title : ''}.`; cls += ' good'; }
+    else { msg = `Not a perfect run, so it does not count. Perfect runs so far: ${n} of ${PERFECT_NEEDED}. Every question must be right.`; }
+    banner = `<div class="${cls}">${msg}</div>`;
+  }
   document.getElementById('quizResults').innerHTML = `
     <h2>Quiz complete</h2>
     <p>${qEsc(currentName || ('Badge ' + currentBadge))}. Here is how you did.</p>
+    ${banner}
     <div class="qr-stats">
       <div class="qr-stat"><b>${pct}%</b><span>Accuracy (${all.c} of ${all.q} correct)</span></div>
       <div class="qr-stat"><b>${wrong}</b><span>Wrong${timeouts ? ' (' + timeouts + ' timed out)' : ''}</span></div>
@@ -2179,10 +2330,10 @@ function finishQuiz(){
     <h3 class="qr-h">Hand by hand</h3><div class="qr-wrap"><table class="qr-table"><thead><tr><th>Hand</th><th>Stake</th><th>Extras</th><th class="num">Correct</th><th class="num">Time</th></tr></thead><tbody>${handRows}</tbody></table></div>
     <h3 class="qr-h">What you missed</h3>
     ${wrong ? misses : '<p class="qr-good">Nothing. Every answer was correct.</p>'}
-    <div class="qr-actions"><button class="btn" id="quizAgain" type="button">Take another quiz</button><button class="btn secondary" id="quizHome" type="button">Back to Training Hub</button></div>`;
+    <div class="qr-actions"><button class="btn" id="quizAgain" type="button">Take another quiz</button><button class="btn secondary" id="quizHome" type="button">Back</button></div>`;
   const again = QZ.mode;
   document.getElementById('quizAgain').addEventListener('click', ()=>startQuiz(again));
-  document.getElementById('quizHome').addEventListener('click', showHub);
+  document.getElementById('quizHome').addEventListener('click', showPloMenu);
   document.getElementById('quizBarFill').style.width = '100%';
   setQuizClasses('done');
   window.scrollTo(0, 0);
@@ -2244,10 +2395,19 @@ function enterSite(badge, name){
   document.getElementById('badgeShow').textContent = badge;
   document.getElementById('hubBadge').textContent = badge;
   document.body.classList.remove('locked');
+  loadProg();
+  renderLevels();
   track('session');
   showHub();
 }
+function showPloMenu(){
+  showHub();
+  document.body.classList.add('view-plo');
+  renderLevels();
+  window.scrollTo(0, 0);
+}
 function showHub(){
+  document.body.classList.remove('view-plo');
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   leaveQuiz();
@@ -2256,7 +2416,7 @@ function showHub(){
   window.scrollTo(0, 0);
 }
 function openModule(name){
-  if(name === 'quiz' || name === 'quiz22'){ startQuiz(name); return; }
+  if(name === 'quiz' || name === 'quiz22' || LEVELS[name]){ startQuiz(name); return; }
   if(name !== 'plo') return;
   leaveQuiz();
   document.body.classList.remove('view-hub');
@@ -2292,7 +2452,7 @@ async function trySignIn(){
   btn.disabled = true; err.textContent = 'Checking...';
   try{
     const r = await trackerCall({action:'check', badge:v});
-    if(r && r.ok){ lsSet('plo-badge', v); lsSet('plo-name', r.name || ''); err.textContent = ''; enterSite(v, r.name); }
+    if(r && r.ok){ lsSet('plo-badge', v); lsSet('plo-name', r.name || ''); err.textContent = ''; enterSite(v, r.name); mergeProg(r.progress); }
     else err.textContent = 'Badge ID not found. Check the number and try again.';
   }catch(e){
     err.textContent = 'Could not reach the training server. Check your connection and try again.';
@@ -2325,17 +2485,21 @@ document.getElementById('signInBtn').addEventListener('click', trySignIn);
 document.getElementById('badgeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); trySignIn(); } });
 document.getElementById('signOutBtn').addEventListener('click', lockSite);
 document.getElementById('hubSignOut').addEventListener('click', lockSite);
-document.getElementById('backHub').addEventListener('click', showHub);
+document.getElementById('backHub').addEventListener('click', showPloMenu);
+document.getElementById('openPloMenu').addEventListener('click', showPloMenu);
+document.getElementById('ploMenuBack').addEventListener('click', showHub);
 document.getElementById('openPlo').addEventListener('click', ()=>openModule('plo'));
 document.getElementById('openQuiz22').addEventListener('click', ()=>openModule('quiz22'));
+document.querySelectorAll('#levelGrid .module').forEach(btn=>btn.addEventListener('click', ()=>{ if(levelUnlocked(btn.dataset.level)) openModule(btn.dataset.level); }));
 document.getElementById('quizBegin').addEventListener('click', beginQuiz);
-document.getElementById('quizCancel').addEventListener('click', showHub);
+document.getElementById('quizCancel').addEventListener('click', showPloMenu);
 document.getElementById('gateLogo').src = document.getElementById('hubLogo').src;
 const savedBadge = lsGet('plo-badge');
 if(savedBadge && (TRACKER_URL || LOCAL_BADGES.includes(savedBadge))) enterSite(savedBadge, lsGet('plo-name') || '');
 // A dealer who was removed from the roster is signed out the next time the site opens.
 if(savedBadge && TRACKER_URL){
   trackerCall({action:'check', badge:savedBadge}).then(r=>{
+    if(r && r.ok) mergeProg(r.progress);
     if(r && r.ok === false){ lockSite(); document.getElementById('gateErr').textContent = 'This badge ID is no longer active. Ask your trainer if you need access.'; }
   }).catch(()=>{});
 }
