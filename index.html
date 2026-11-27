@@ -692,7 +692,7 @@
         <span class="fb-status" id="fbStatus" role="status"></span>
       </div>
     </section>
-    <p class="ver">Site version: 26 Nov, pot shown fix 3</p>
+    <p class="ver">Site version: 27 Nov, 5 hands and 3000 cap fix 4</p>
   </main>
 </div>
 <div class="wrap">
@@ -702,7 +702,7 @@
       <button class="linkbtn back-link" id="backHub" type="button">&lsaquo; Pot Limit Omaha</button>
       <h1>PLO Pot Trainer</h1>
       <p>Practice announcing the count.</p>
-      <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button><span class="ver-inline">Build 26 Nov fix 3</span></p>
+      <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button><span class="ver-inline">Build 27 Nov fix 4</span></p>
     </div>
     <div class="scoreboard">
       <div class="streak" id="streakVal">Streak 0</div>
@@ -715,7 +715,7 @@
   </div>
 
   <div class="quizbar" id="quizBar">
-    <div class="quizbar-top"><span id="quizBarHand">Hand 1 of 10</span><span id="quizBarStake"></span></div>
+    <div class="quizbar-top"><span id="quizBarHand">Hand 1 of 5</span><span id="quizBarStake"></span></div>
     <div class="quizbar-track"><div class="quizbar-fill" id="quizBarFill"></div></div>
   </div>
 
@@ -1462,7 +1462,8 @@ function generateWholeHandScenario(stake, opts){
   return {
     stake, buttonIdx:pre.buttonIdx, sbIdx:pre.sbIdx, bbIdx:pre.bbIdx, straddleIdx:pre.straddleIdx, dblStraddleIdx:pre.dblStraddleIdx,
     willStraddle:pre.willStraddle, willDblStraddle:pre.willDblStraddle,
-    log: combinedLog, folded: cumulativeFolded, roleOf: pre.roleOf, effStack
+    log: combinedLog, folded: cumulativeFolded, roleOf: pre.roleOf, effStack,
+    totalPot: stackUsed.reduce((a,v)=>a+v,0)
   };
 }
 
@@ -2055,7 +2056,8 @@ document.querySelectorAll('.street-btn').forEach(btn=>{
 
 
 // ---- Quiz ----
-const QUIZ_HANDS = 10;
+const QUIZ_HANDS = 5;
+const QUIZ22_MAX_POT = 3000; // the 2/2 quiz never goes past this total pot
 let QZ = null;
 
 // ---- Quiz levels ----
@@ -2063,12 +2065,12 @@ const LEVEL_ORDER = ['beginner', 'intermediate', 'advanced'];
 const PERFECT_NEEDED = 5;
 // "pots" = pot-size bets asked on one street. ok() checks the whole hand.
 const LEVELS = {
-  beginner:     {title:'Beginner',     hands:10, straddle:0,   dbl:0,    allIn:0,   ok:s=>s.max <= 1 && s.sum >= 2,
-    intro:'You will be quizzed on 10 whole hands.'},
-  intermediate: {title:'Intermediate', hands:10, straddle:0.2, dbl:0,    allIn:0.5, ok:s=>s.max <= 2 && s.sum >= 3,
-    intro:'You will be quizzed on 10 whole hands.'},
-  advanced:     {title:'Advanced',     hands:10, straddle:0.3, dbl:0.25, allIn:0.6, ok:s=>s.max <= 3 && s.n3 <= 1 && s.sum >= 4 && s.sum <= 6 && s.n2 >= 1,
-    intro:'You will be quizzed on 10 whole hands.'}
+  beginner:     {title:'Beginner',     hands:5, straddle:0,   dbl:0,    allIn:0,   ok:s=>s.max <= 1 && s.sum >= 2,
+    intro:'You will be quizzed on 5 whole hands.'},
+  intermediate: {title:'Intermediate', hands:5, straddle:0.2, dbl:0,    allIn:0.5, ok:s=>s.max <= 2 && s.sum >= 3,
+    intro:'You will be quizzed on 5 whole hands.'},
+  advanced:     {title:'Advanced',     hands:5, straddle:0.3, dbl:0.25, allIn:0.6, ok:s=>s.max <= 3 && s.n3 <= 1 && s.sum >= 4 && s.sum <= 6 && s.n2 >= 1,
+    intro:'You will be quizzed on 5 whole hands.'}
 };
 let PROG = {beginner:0, intermediate:0, advanced:0};
 function loadProg(){
@@ -2123,7 +2125,8 @@ function randomQuizHand(straddleWanted){
   if(LEVELS[QZ.mode]) return levelHand(QZ.mode, QZ.stakePlan[QZ.hand]);
   let last = null;
   const only22 = QZ.mode === 'quiz22';
-  for(let tries = 0; tries < 60; tries++){
+  let best = null;
+  for(let tries = 0; tries < (only22 ? 300 : 60); tries++){
     const stake = only22 ? STAKES[0] : pick(STAKES);
     const straddle = only22 ? !!straddleWanted : Math.random() < 0.2;
     const dbl = !only22 && straddle && Math.random() < 0.25;
@@ -2131,9 +2134,10 @@ function randomQuizHand(straddleWanted){
     const sc = generateWholeHandScenario(stake, {straddle:straddle, doubleStraddle:dbl, allIn:allIn});
     const nq = sc.log.filter(e=>e.quiz).length;
     last = {sc, stake, straddle:!!sc.willStraddle, dbl:!!sc.willDblStraddle, allIn: sc.log.some(e=>e.allIn)};
+    if(only22 && sc.totalPot > QUIZ22_MAX_POT){ if(nq >= 2 && (!best || sc.totalPot < best.sc.totalPot)) best = last; continue; }
     if(nq >= 2 && nq <= 5) return last;
   }
-  return last;
+  return (only22 && best) ? best : last;
 }
 
 function setQuizClasses(state){
@@ -2143,8 +2147,8 @@ function setQuizClasses(state){
 }
 
 const QUIZ_INTRO = {
-  quiz22: 'You will be quizzed on 10 whole hands.',
-  quiz: 'You will be quizzed on 10 whole hands.'
+  quiz22: 'You will be quizzed on 5 whole hands.',
+  quiz: 'You will be quizzed on 5 whole hands.'
 };
 const QUIZ_TITLE = {quiz22:'2/2 Pot Limit Omaha Quiz', quiz:'Pot Limit Omaha Quiz', beginner:'Beginner Quiz', intermediate:'Intermediate Quiz', advanced:'Advanced Quiz'};
 
@@ -2154,7 +2158,9 @@ function startQuiz(mode){
   stopTimer();
   if(dealTimer) clearTimeout(dealTimer);
   started = false;
-  const plan = [true,true,true,true,true,false,false,false,false,false];
+  const nStr = Math.random() < 0.5 ? 2 : 3; // 5 hands: 2 or 3 with a straddle, shuffled
+  const plan = [];
+  for(let i = 0; i < QUIZ_HANDS; i++) plan.push(i < nStr);
   for(let i = plan.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [plan[i], plan[j]] = [plan[j], plan[i]]; }
   const total = LEVELS[mode] ? LEVELS[mode].hands : QUIZ_HANDS;
   const order = STAKES.slice();
@@ -2198,7 +2204,7 @@ function nextQuizHand(){
   if(QZ.hand >= QZ.total){ finishQuiz(); return; }
   const h = randomQuizHand(!!QZ.plan[QZ.hand]);
   QZ.hand++;
-  QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
+  QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn, totalPot:h.sc.totalPot};
   QZ.hands.push(QZ.cur);
   currentStake = h.stake;
   document.getElementById('quizBarHand').textContent = `Hand ${QZ.hand} of ${QZ.total}`;
