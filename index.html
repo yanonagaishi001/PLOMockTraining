@@ -692,7 +692,7 @@
         <span class="fb-status" id="fbStatus" role="status"></span>
       </div>
     </section>
-    <p class="ver">Site version: 26 Nov, pot reveal fix 2</p>
+    <p class="ver">Site version: 26 Nov, pot shown fix 3</p>
   </main>
 </div>
 <div class="wrap">
@@ -702,7 +702,7 @@
       <button class="linkbtn back-link" id="backHub" type="button">&lsaquo; Pot Limit Omaha</button>
       <h1>PLO Pot Trainer</h1>
       <p>Practice announcing the count.</p>
-      <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button><span class="ver-inline">Build 26 Nov fix 2</span></p>
+      <p class="signed"><span>Badge <span id="badgeShow"></span></span><button class="linkbtn" id="signOutBtn" type="button">Sign out</button><span class="ver-inline">Build 26 Nov fix 3</span></p>
     </div>
     <div class="scoreboard">
       <div class="streak" id="streakVal">Streak 0</div>
@@ -1654,8 +1654,8 @@ function applyStreetTransition(sc, entry){
     setTimeout(()=>{ old.forEach(d=>d.remove()); }, 500);
     Sound.sweep();
   }
-  // Quiz: if the last pot count was wrong, keep showing the real pot on every street until the next pot question is asked.
-  const revealPot = !!(QZ && QZ.revealPot);
+  // Quiz: always show the real pot on the new street, whether the pot count was right or wrong.
+  const revealPot = !!QZ;
   showCenterPot(entry.potTotal, entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase(), entry.hidePot && !revealPot);
   document.getElementById('questionText').innerHTML = `<b style="font-size:20px;">${entry.streetName.charAt(0)+entry.streetName.slice(1).toLowerCase()}</b>`;
 }
@@ -2196,7 +2196,6 @@ function beginQuiz(){
 function nextQuizHand(){
   if(!QZ || QZ.done) return;
   if(QZ.hand >= QZ.total){ finishQuiz(); return; }
-  QZ.revealPot = false;
   const h = randomQuizHand(!!QZ.plan[QZ.hand]);
   QZ.hand++;
   QZ.cur = {n:QZ.hand, stakeKey:h.stake.key, stake:h.stake.label, straddle:h.straddle, dbl:h.dbl, allIn:h.allIn};
@@ -2239,7 +2238,6 @@ function quizRecord(q, val, timedOut){
     seconds: secs, timedOut: timedOut, explain: explainQuestion(q)
   });
   if(!q.potQuiz) revealQuizChip(scenario, q);
-  if(q.potQuiz) QZ.revealPot = !right;
   const fb = document.getElementById('feedback');
   fb.textContent = ''; fb.className = 'feedback';
   document.getElementById('answerInput').disabled = true;
